@@ -1,0 +1,32 @@
+[
+  {
+    "user_id": "user1",
+    "event_type": "session_start",
+    "timestamp": "2023-01-01T10:00:00Z",
+    "session_length": 15
+  },
+  {
+    "user_id": "user1",
+    "event_type": "favorite",
+    "timestamp": "2023-01-01T10:05:00Z",
+    "listing_id": "listing1"
+  },
+  {
+    "user_id": "user2",
+    "event_type": "session_start",
+    "timestamp": "2023-01-01T11:00:00Z",
+    "session_length": 20
+  },
+  {
+    "user_id": "user2",
+    "event_type": "view_listing",
+    "timestamp": "2023-01-01T11:10:00Z",
+    "listing_id": "listing2"
+  },
+  {
+    "user_id": "user1",
+    "event_type": "session_start",
+    "timestamp": "2023-01-02T09:00:00Z",
+    "session_length": 18
+  }
+]

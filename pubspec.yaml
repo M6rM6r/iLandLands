@@ -1,0 +1,126 @@
+name: gulflands
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core Architecture
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+  http: ^1.2.2
+  connectivity_plus: ^7.1.1
+  provider: ^6.1.2
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.3
+  cached_network_image: ^3.3.0
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.5
+  json_annotation: ^4.8.1
+  
+  # Advanced State Management
+  dio: ^5.4.3+1
+  get_it: ^9.2.1
+  injectable: ^2.3.2
+  freezed_annotation: ^3.1.0
+  
+  # Advanced UI Components
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+  flutter_staggered_animations: ^1.1.1
+  card_swiper: ^3.0.1
+  google_fonts: ^8.0.2
+  flutter_svg: ^2.0.10+1
+  
+  # Advanced Features
+  image_picker: ^1.0.7
+  permission_handler: ^12.0.1
+  geolocator: ^14.0.2
+  maps_launcher: ^3.0.0+1
+  url_launcher: ^6.2.6
+  share_plus: ^12.0.2
+  firebase_core: ^4.7.0
+  firebase_auth: ^6.0.0
+  firebase_analytics: ^12.3.0
+  firebase_crashlytics: ^5.2.0
+  firebase_messaging: ^16.0.1
+  
+  # Advanced Data Processing
+  uuid: ^4.4.2
+  crypto: ^3.0.3
+  collection: ^1.18.0
+  path: ^1.8.3
+  
+  # Advanced Validation
+  form_field_validator: ^1.1.0
+  email_validator: ^3.0.0
+  json_schema: ^5.1.1
+  
+  # Advanced Utilities
+  logger: ^2.0.2+1
+  device_info_plus: ^12.4.0
+  package_info_plus: ^9.0.1
+  flutter_screenutil: ^5.9.0
+  
+  # Advanced Charts & Analytics
+  fl_chart: ^1.2.0
+  syncfusion_flutter_charts: ^33.1.49
+  
+  # Advanced Animations
+  rive: ^0.14.0
+  confetti: ^0.8.0
+  
+  
+  # Advanced Networking
+  retrofit: ^4.0.3
+  graphql_flutter: ^5.1.2
+  
+  # Advanced Security
+  flutter_secure_storage: ^10.0.0
+  local_auth: ^3.0.1
+  
+  # Advanced Testing
+  golden_toolkit: ^0.15.0
+  integration_test:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+  mockito: ^5.4.4
+  
+  # Advanced Code Generation
+  freezed: ^3.2.3
+  injectable_generator: ^2.4.1
+  
+  # Advanced Testing
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.3
+  network_image_mock: ^2.1.1
+  
+  # Advanced Analysis
+  custom_lint: ^0.8.1
+  very_good_analysis: ^10.1.0
+  
+  # Advanced Development Tools
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.3.10
+  
+  # Advanced Performance
+  flutter_driver:
+    sdk: flutter
+  test: ^1.24.4
+
+flutter:
+
+  uses-material-design: true

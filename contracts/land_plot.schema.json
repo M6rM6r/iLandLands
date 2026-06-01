@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gulflands.com/schemas/land_plot.json",
+  "title": "LandPlot",
+  "description": "Schema for land plot data across all platforms",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the land plot"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the land plot listing",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the land plot",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "price": {
+      "type": "number",
+      "description": "Price in SAR",
+      "minimum": 0
+    },
+    "area": {
+      "type": "number",
+      "description": "Area in square meters",
+      "minimum": 0
+    },
+    "country": {
+      "type": "string",
+      "enum": ["saudiArabia", "uae", "qatar", "bahrain", "oman", "kuwait"],
+      "description": "Country where the land is located"
+    },
+    "location": {
+      "type": "string",
+      "description": "Specific location within the country",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "imageUrls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "Array of image URLs",
+      "minItems": 1
+    },
+    "isFeatured": {
+      "type": "boolean",
+      "description": "Whether this is a featured listing",
+      "default": false
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation timestamp"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp"
+    }
+  },
+  "required": ["id", "title", "description", "price", "area", "country", "location", "imageUrls", "createdAt"]
+}

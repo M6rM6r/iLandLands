@@ -1,0 +1,53 @@
+[mysqld]
+# --- Character Set ---
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+init-connect = 'SET NAMES utf8mb4'
+
+# --- Connection ---
+max_connections = 200
+connect_timeout = 10
+wait_timeout = 600
+interactive_timeout = 600
+max_allowed_packet = 64M
+
+# --- InnoDB ---
+innodb_buffer_pool_size = 256M
+innodb_buffer_pool_instances = 2
+innodb_log_file_size = 64M
+innodb_log_buffer_size = 16M
+innodb_flush_log_at_trx_commit = 1
+innodb_flush_method = O_DIRECT
+innodb_file_per_table = 1
+innodb_stats_on_metadata = 0
+
+# --- Query Cache (disabled in MySQL 8) ---
+# query_cache_type = 0
+
+# --- Slow Query Log ---
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+log_queries_not_using_indexes = 0
+
+# --- Binary Log (for point-in-time recovery) ---
+log_bin = /var/lib/mysql/mysql-bin
+binlog_format = ROW
+binlog_expire_logs_seconds = 604800
+max_binlog_size = 100M
+sync_binlog = 1
+
+# --- Security ---
+local_infile = 0
+symbolic_links = 0
+
+# --- Performance Schema ---
+performance_schema = ON
+
+[mysqldump]
+max_allowed_packet = 64M
+quick
+quote-names
+
+[client]
+default-character-set = utf8mb4
