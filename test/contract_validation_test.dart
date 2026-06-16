@@ -9,7 +9,7 @@ void main() {
 
   group('Data Contract Validation', () {
     test('valid land plot data passes validation', () {
-      final validData = {
+      final Map<String, Object> validData = <String, Object>{
         'id': 'test-1',
         'title': 'Test Plot',
         'description': 'A test land plot',
@@ -17,7 +17,7 @@ void main() {
         'area': 5000.0,
         'country': 'saudiArabia',
         'location': 'Test City',
-        'imageUrls': ['https://example.com/image.jpg'],
+        'imageUrls': <String>['https://example.com/image.jpg'],
         'createdAt': '2023-01-01T00:00:00.000Z',
         'isFeatured': false,
       };
@@ -27,7 +27,7 @@ void main() {
     });
 
     test('invalid data fails validation', () {
-      final invalidData = {
+      final Map<String, Object> invalidData = <String, Object>{
         'id': '', // Empty ID
         'title': '', // Empty title
         'price': -1000.0, // Negative price
@@ -39,12 +39,14 @@ void main() {
       };
 
       expect(validator.LandPlotValidator.validate(invalidData), false);
-      final errors = validator.LandPlotValidator.getErrors(invalidData);
+      final List<String> errors = validator.LandPlotValidator.getErrors(
+        invalidData,
+      );
       expect(errors.length, greaterThan(0));
     });
 
     test('LandPlot.fromJson validates data', () {
-      final validJson = {
+      final Map<String, Object> validJson = <String, Object>{
         'id': 'test-1',
         'title': 'Test Plot',
         'description': 'A test land plot',
@@ -52,19 +54,19 @@ void main() {
         'area': 5000.0,
         'country': 'saudiArabia',
         'location': 'Test City',
-        'imageUrls': ['https://example.com/image.jpg'],
+        'imageUrls': <String>['https://example.com/image.jpg'],
         'createdAt': '2023-01-01T00:00:00.000Z',
         'isFeatured': false,
       };
 
       expect(() => LandPlot.fromJson(validJson), returnsNormally);
-      final plot = LandPlot.fromJson(validJson);
+      final LandPlot plot = LandPlot.fromJson(validJson);
       expect(plot.id, 'test-1');
       expect(plot.title, 'Test Plot');
     });
 
     test('LandPlot.fromJson throws on invalid data', () {
-      final invalidJson = {
+      final Map<String, Object> invalidJson = <String, Object>{
         'id': '',
         'title': '',
         'description': 'A test land plot',
@@ -76,7 +78,10 @@ void main() {
         'createdAt': '2023-01-01T00:00:00.000Z',
       };
 
-      expect(() => LandPlot.fromJson(invalidJson), throwsA(isA<FormatException>()));
+      expect(
+        () => LandPlot.fromJson(invalidJson),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 }

@@ -25,17 +25,17 @@ jobs:
         flutter-version: '3.16.0'
         channel: 'stable'
     
-    - name: Install dependencies
-      run: flutter pub get
+    - name: Install Flutter dependencies
+      run: make setup-flutter
     
     - name: Generate code
-      run: dart run build_runner build --delete-conflicting-outputs
+      run: make build-runner
     
-    - name: Analyze code
-      run: flutter analyze
+    - name: Static Analysis (Flutter)
+      run: make analyze-flutter
     
-    - name: Run tests
-      run: flutter test --coverage
+    - name: Run tests (Flutter)
+      run: make test-flutter
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -43,7 +43,13 @@ jobs:
         file: coverage/lcov.info
     
     - name: Build web app
-      run: flutter build web --release
+      run: make build-web
+
+    - name: Upload web build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: flutter-web-build
+        path: build/web
 
   # PHP Backend Testing
   php-test:
@@ -62,20 +68,16 @@ jobs:
       run: cp backend/.env.example backend/.env
     
     - name: Install dependencies
-      working-directory: ./backend
-      run: composer install --no-progress --no-interaction
+      run: make setup-php
     
     - name: Run PHPStan
-      working-directory: ./backend
-      run: vendor/bin/phpstan analyse --level=8
+      run: make analyze-php
     
     - name: Run PHP CS Fixer
-      working-directory: ./backend
-      run: vendor/bin/php-cs-fixer fix --dry-run --diff
+      run: make lint-php
     
     - name: Run PHPUnit tests
-      working-directory: ./backend
-      run: vendor/bin/phpunit --coverage-clover=coverage.xml
+      run: make test-php
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -106,6 +108,30 @@ jobs:
         if [ -f package.json ]; then
           npm audit --audit-level high
         fi
+
+  # Deploy Flutter Web to Firebase Hosting on push to main
+  deploy-web-production:
+    needs: [flutter-test, security-scan] # Ensure web build and security checks pass
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Only deploy on pushes to main branch
+    environment: production # Use the production environment for secrets
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: flutter-web-build
+          path: build/web
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Flutter Web to Firebase Hosting
+        run: make deploy-web
+        env:
+          # Firebase CLI uses FIREBASE_TOKEN environment variable for authentication
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
   # Docker Build and Push
   docker-build:

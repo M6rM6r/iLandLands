@@ -21,7 +21,7 @@ Future<void> main() async {
   // --- Crashlytics (not supported on web) ---
   if (!kIsWeb) {
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    PlatformDispatcher.instance.onError = (error, stack) {
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
@@ -33,11 +33,7 @@ Future<void> main() async {
   // --- Cloud Messaging (not supported on web) ---
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await FirebaseMessaging.instance.requestPermission(badge: true);
   }
 
   runApp(const MyApp());

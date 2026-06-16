@@ -4,7 +4,7 @@ abstract class AuthEvent extends Equatable {
   const AuthEvent();
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => <Object?>[];
 }
 
 /// App startup — check if a user is already signed in.
@@ -20,7 +20,7 @@ class AuthLoginRequested extends AuthEvent {
   final String password;
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => <Object?>[email, password];
 }
 
 /// Create a new account and immediately sign in.
@@ -36,7 +36,7 @@ class AuthRegisterRequested extends AuthEvent {
   final String displayName;
 
   @override
-  List<Object?> get props => [email, password, displayName];
+  List<Object?> get props => <Object?>[email, password, displayName];
 }
 
 /// Sign out the current user.

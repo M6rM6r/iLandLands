@@ -1,0 +1,79 @@
+# Gulf Lands — canonical system map (single source of truth)
+# Layer order: client → edge → compute → data → observability
+
+version: "1.0.0"
+product: Gulf Lands Market
+primary_client: lib/                    # Flutter (Firebase-first active path)
+
+layers:
+  client:
+    flutter:
+      entry: lib/main.dart
+      routing: lib/presentation/screens/main_shell.dart
+      state: lib/bloc/
+      data_active: lib/services/land_repository.dart   # Firestore
+      data_legacy: lib/data/                           # clean-arch skeleton (unused)
+      features:
+        - lib/features/ai_assistant/
+        - lib/presentation/screens/valuation_screen.dart
+
+  edge:
+    firebase:
+      auth: lib/bloc/auth/
+      firestore: land_listings, user_favorites, inquiries, payments
+      functions: functions/src/
+      rules: firestore.rules
+    php_api:
+      docker_path: backend/
+      alt_path: backend-php/              # PSR layout — consolidate target
+      router: backend/api/index.php
+
+  compute:
+    backend_python:
+      path: backend-python/
+      port: 8000
+      role: valuation, listings REST, analytics ingest
+    reco_service:
+      path: reco-service/
+      port: 8001
+      role: ML/rule recommendations
+    analytics:
+      path: analytics/
+      port: 8002
+      db: postgresql                        # NOT mysql
+    cloud_functions:
+      path: functions/src/
+
+  data:
+    mysql: docker-compose mysql service     # PHP backend
+    postgresql: docker-compose postgres     # analytics only
+    redis: cache, rate limits, queues
+    firestore: primary mobile/web listings
+
+  observability:
+    prometheus: monitoring/prometheus.yml
+    grafana: monitoring/grafana/
+    elk: logging/
+
+integration_matrix:
+  flutter_firestore: active
+  flutter_php_api: dormant                  # ApiClient exists, not wired
+  flutter_backend_python: wiring            # ValuationClient HTTP fallback
+  flutter_reco_service: wiring              # RecoServiceClient
+  flutter_analytics: partial                # TelemetryService → Firebase
+
+commands:
+  stack_up: docker compose up -d
+  stack_down: docker compose down
+  flutter_run: flutter run
+  seed_firestore: node scripts/seed_firestore.js
+  verify: python scripts/verify_integrity.py
+  test_python: pytest backend-python/
+  test_flutter: flutter test
+
+debt_register:
+  - duplicate PHP backends (backend/ vs backend-php/)
+  - duplicate home screens (lib/screens/ vs lib/presentation/screens/)
+  - duplicate LandPlot models (lib/models/ vs lib/domain/entities/)
+  - orphaned root ai_assistant_*.dart (removed → lib/features/ai_assistant/)
+  - analytics requirements bloat (slimmed)

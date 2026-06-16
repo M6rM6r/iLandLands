@@ -1,21 +1,17 @@
-import 'package:gulflands/data/datasources/land_remote_datasource.dart';
-import 'package:gulflands/domain/entities/land_plot.dart';
+import 'package:gulflands/models/land_plot.dart';
 
 abstract class LandRepository {
-  Future<List<LandPlot>> getLandListings({
-    bool forceRefresh,
-    Country? country,
-    SortOption? sortBy,
-    String? searchQuery,
+  Future<List<LandPlot>> getListings({
+    String? country,
+    double? minPrice,
+    double? maxPrice,
   });
+  Future<LandPlot?> getDetails(String id);
+  Future<void> saveListing(LandPlot plot);
+  Future<List<LandPlot>> getTrending();
 
-  Future<LandPlot?> getLandPlotById(String id);
-
-  Future<List<LandPlot>> getFeaturedListings({bool forceRefresh});
-
-  Future<void> addToFavorites(String landId, {String userId});
-
-  Future<void> removeFromFavorites(String landId, {String userId});
-
-  Future<List<String>> getFavoriteIds({String userId, bool forceRefresh});
+  Future<List<LandPlot>> getLandListings();
+  Future<List<String>> getFavoriteIds();
+  Future<void> addToFavorites(String id);
+  Future<void> removeFromFavorites(String id);
 }

@@ -14,11 +14,12 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
@@ -33,21 +34,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(AuthRegisterRequested(
-          displayName: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        ));
+    context.read<AuthBloc>().add(
+      AuthRegisterRequested(
+        displayName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: SafeArea(
         child: BlocConsumer<AuthBloc, AuthState>(
-          listener: (context, state) {
+          listener: (BuildContext context, AuthState state) {
             if (state is AuthError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -57,8 +60,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               );
             }
           },
-          builder: (context, state) {
-            final isLoading = state is AuthLoading;
+          builder: (BuildContext context, AuthState state) {
+            final bool isLoading = state is AuthLoading;
 
             return Center(
               child: SingleChildScrollView(
@@ -70,7 +73,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                      children: <Widget>[
                         Icon(
                           Icons.landscape_outlined,
                           size: 64,
@@ -80,7 +83,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           'Create Account',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.primary,
                               ),
@@ -89,9 +93,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           'Start exploring Gulf land listings',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 32),
 
@@ -104,8 +107,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             labelText: 'Full Name',
                             prefixIcon: Icon(Icons.person_outlined),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Name is required';
+                          validator: (String? v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Name is required';
+                            }
                             if (v.trim().length < 2) return 'Name is too short';
                             return null;
                           },
@@ -122,10 +127,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             labelText: 'Email',
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Email is required';
-                            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                .hasMatch(v.trim())) {
+                          validator: (String? v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Email is required';
+                            }
+                            if (!RegExp(
+                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                            ).hasMatch(v.trim())) {
                               return 'Enter a valid email address';
                             }
                             return null;
@@ -148,17 +156,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
                               ),
-                              onPressed: () =>
-                                  setState(() => _obscurePassword = !_obscurePassword),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                           ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Password is required';
-                            if (v.length < 8) return 'Password must be at least 8 characters';
-                            if (!RegExp(r'[A-Z]').hasMatch(v)) {
+                          validator: (String? v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Password is required';
+                            }
+                            if (v.length < 8) {
+                              return 'Password must be at least 8 characters';
+                            }
+                            if (!RegExp('[A-Z]').hasMatch(v)) {
                               return 'Include at least one uppercase letter';
                             }
-                            if (!RegExp(r'[0-9]').hasMatch(v)) {
+                            if (!RegExp('[0-9]').hasMatch(v)) {
                               return 'Include at least one number';
                             }
                             return null;
@@ -181,12 +194,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
                               ),
-                              onPressed: () =>
-                                  setState(() => _obscureConfirm = !_obscureConfirm),
+                              onPressed: () => setState(
+                                () => _obscureConfirm = !_obscureConfirm,
+                              ),
                             ),
                           ),
-                          validator: (v) {
-                            if (v != _passwordController.text) return 'Passwords do not match';
+                          validator: (String? v) {
+                            if (v != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
                             return null;
                           },
                         ),
@@ -198,7 +214,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text('Create Account'),
                         ),

@@ -10,12 +10,13 @@ abstract class CacheManager {
 }
 
 class CacheManagerImpl implements CacheManager {
-
   CacheManagerImpl._(this._cacheRepository);
   final CacheRepository _cacheRepository;
 
-  static Future<CacheManagerImpl> create({TelemetryHooks? telemetryHooks}) async {
-    final cacheRepo = await CacheRepository.initialize(
+  static Future<CacheManagerImpl> create({
+    TelemetryHooks? telemetryHooks,
+  }) async {
+    final CacheRepository cacheRepo = await CacheRepository.initialize(
       telemetryCallback: telemetryHooks?.cacheCallback,
     );
     return CacheManagerImpl._(cacheRepo);

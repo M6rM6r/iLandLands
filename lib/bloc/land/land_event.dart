@@ -4,22 +4,18 @@ abstract class LandEvent extends Equatable {
   const LandEvent();
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => <Object?>[];
 }
 
 class LoadLandListings extends LandEvent {
-  const LoadLandListings({
-    this.country,
-    this.sortBy,
-    this.searchQuery,
-  });
+  const LoadLandListings({this.country, this.sortBy, this.searchQuery});
 
   final Country? country;
   final SortOption? sortBy;
   final String? searchQuery;
 
   @override
-  List<Object?> get props => [country, sortBy, searchQuery];
+  List<Object?> get props => <Object?>[country, sortBy, searchQuery];
 }
 
 class RefreshLandListings extends LandEvent {
@@ -32,7 +28,7 @@ class SearchLandListings extends LandEvent {
   final String query;
 
   @override
-  List<Object?> get props => [query];
+  List<Object?> get props => <Object?>[query];
 }
 
 class FilterLandListings extends LandEvent {
@@ -41,7 +37,7 @@ class FilterLandListings extends LandEvent {
   final Country? country;
 
   @override
-  List<Object?> get props => [country];
+  List<Object?> get props => <Object?>[country];
 }
 
 class SortLandListings extends LandEvent {
@@ -50,7 +46,7 @@ class SortLandListings extends LandEvent {
   final SortOption? sortBy;
 
   @override
-  List<Object?> get props => [sortBy];
+  List<Object?> get props => <Object?>[sortBy];
 }
 
 class ToggleFavorite extends LandEvent {
@@ -59,7 +55,7 @@ class ToggleFavorite extends LandEvent {
   final String plotId;
 
   @override
-  List<Object?> get props => [plotId];
+  List<Object?> get props => <Object?>[plotId];
 }
 
 class LoadMoreListings extends LandEvent {

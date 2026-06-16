@@ -22,7 +22,7 @@ abstract class LandLocalDataSource {
 
 class LandLocalDataSourceImpl implements LandLocalDataSource {
   const LandLocalDataSourceImpl({required CacheManager cacheManager})
-      : _cacheManager = cacheManager;
+    : _cacheManager = cacheManager;
 
   final CacheManager _cacheManager;
 
@@ -32,7 +32,7 @@ class LandLocalDataSourceImpl implements LandLocalDataSource {
 
   @override
   Future<List<LandPlot>?> getCachedListings(String cacheKey) async {
-    final raw = await _cacheManager.get<List<dynamic>>(cacheKey);
+    final List<dynamic>? raw = await _cacheManager.get<List<dynamic>>(cacheKey);
     if (raw == null) return null;
     try {
       return raw
@@ -48,7 +48,7 @@ class LandLocalDataSourceImpl implements LandLocalDataSource {
   Future<void> cacheListings(String cacheKey, List<LandPlot> listings) =>
       _cacheManager.set(
         cacheKey,
-        listings.map((p) => p.toJson()).toList(),
+        listings.map((LandPlot p) => p.toJson()).toList(),
         ttl: _defaultTtl,
       );
 
@@ -60,7 +60,7 @@ class LandLocalDataSourceImpl implements LandLocalDataSource {
   Future<void> cacheFeaturedListings(List<LandPlot> listings) =>
       _cacheManager.set(
         _featuredKey,
-        listings.map((p) => p.toJson()).toList(),
+        listings.map((LandPlot p) => p.toJson()).toList(),
         ttl: _featuredTtl,
       );
 

@@ -11,14 +11,14 @@ part 'land_event.dart';
 part 'land_state.dart';
 
 class LandBloc extends Bloc<LandEvent, LandState> {
-
-  LandBloc({
-    required LandRepository repository,
-    RankingService? rankingService,
-  }) : _repository = repository,
-       _rankingService = rankingService ?? RankingService(),
-       super(const LandState.initial()) {
-    _searchAndRankListings = SearchAndRankListings(_repository, _rankingService);
+  LandBloc({required LandRepository repository, RankingService? rankingService})
+    : _repository = repository,
+      _rankingService = rankingService ?? RankingService(),
+      super(const LandState.initial()) {
+    _searchAndRankListings = SearchAndRankListings(
+      _repository,
+      _rankingService,
+    );
     on<LandEvent>(_onLandEvent);
   }
   final LandRepository _repository;
@@ -37,6 +37,10 @@ class LandBloc extends Bloc<LandEvent, LandState> {
         await _onSortLandListings(event, emit);
       case SearchLandListings():
         await _onSearchLandListings(event, emit);
+      case ToggleFavorite():
+        await _onToggleFavorite(event, emit);
+      case LoadMoreListings():
+        break;
     }
   }
 
@@ -47,36 +51,44 @@ class LandBloc extends Bloc<LandEvent, LandState> {
     emit(const LandState.loading());
 
     try {
+      final List<String> favoriteIds = await _repository.getFavoriteIds();
+
       if (event.searchQuery != null && event.searchQuery!.isNotEmpty) {
-        // Use search and rank for search queries
-        final favoriteIds = await _repository.getFavoriteIds();
-        final scoredListings = await _searchAndRankListings.call(
-          event.searchQuery!,
-          country: event.country,
-          favoriteIds: favoriteIds,
-        );
-        final listings = scoredListings.map((scored) => scored.plot).toList();
+        final List<ScoredLandPlot> scoredListings = await _searchAndRankListings
+            .call(
+              event.searchQuery!,
+              country: event.country,
+              favoriteIds: favoriteIds,
+            );
+        final List<LandPlot> listings = scoredListings
+            .map((ScoredLandPlot scored) => scored.plot)
+            .toList();
 
-        emit(LandState.loaded(
-          listings: listings,
-          scoredListings: scoredListings,
-          country: event.country,
-          searchQuery: event.searchQuery,
-        ));
+        emit(
+          LandState.loaded(
+            listings: listings,
+            scoredListings: scoredListings,
+            country: event.country,
+            searchQuery: event.searchQuery,
+            favoriteIds: favoriteIds,
+          ),
+        );
       } else {
-        // Use regular repository for non-search listings
-        final listings = await _repository.getLandListings(
+        final List<LandPlot> listings = await _repository.getLandListings(
           country: event.country,
           sortBy: event.sortBy,
           searchQuery: event.searchQuery,
         );
 
-        emit(LandState.loaded(
-          listings: listings,
-          country: event.country,
-          sortBy: event.sortBy,
-          searchQuery: event.searchQuery,
-        ));
+        emit(
+          LandState.loaded(
+            listings: listings,
+            country: event.country,
+            sortBy: event.sortBy,
+            searchQuery: event.searchQuery,
+            favoriteIds: favoriteIds,
+          ),
+        );
       }
     } catch (e) {
       emit(LandState.error(e.toString()));
@@ -87,46 +99,50 @@ class LandBloc extends Bloc<LandEvent, LandState> {
     RefreshLandListings event,
     Emitter<LandState> emit,
   ) async {
-    final currentState = state;
-    
+    final LandState currentState = state;
+
     if (currentState is LandStateLoaded) {
       emit(currentState.copyWith(isRefreshing: true));
     } else {
       emit(const LandState.loading());
     }
-    
+
     try {
-      final listings = await _repository.getLandListings(
+      final List<String> favoriteIds = await _repository.getFavoriteIds();
+      final List<LandPlot> listings = await _repository.getLandListings(
         forceRefresh: true,
         country: currentState.maybeWhen(
-          loaded: (s) => s.country,
+          loaded: (LandStateLoaded s) => s.country,
           orElse: () => null,
         ),
         sortBy: currentState.maybeWhen(
-          loaded: (s) => s.sortBy,
+          loaded: (LandStateLoaded s) => s.sortBy,
           orElse: () => null,
         ),
         searchQuery: currentState.maybeWhen(
-          loaded: (s) => s.searchQuery,
+          loaded: (LandStateLoaded s) => s.searchQuery,
           orElse: () => null,
         ),
       );
-      
-      emit(LandState.loaded(
-        listings: listings,
-        country: currentState.maybeWhen(
-          loaded: (s) => s.country,
-          orElse: () => null,
+
+      emit(
+        LandState.loaded(
+          listings: listings,
+          country: currentState.maybeWhen(
+            loaded: (LandStateLoaded s) => s.country,
+            orElse: () => null,
+          ),
+          sortBy: currentState.maybeWhen(
+            loaded: (LandStateLoaded s) => s.sortBy,
+            orElse: () => null,
+          ),
+          searchQuery: currentState.maybeWhen(
+            loaded: (LandStateLoaded s) => s.searchQuery,
+            orElse: () => null,
+          ),
+          favoriteIds: favoriteIds,
         ),
-        sortBy: currentState.maybeWhen(
-          loaded: (s) => s.sortBy,
-          orElse: () => null,
-        ),
-        searchQuery: currentState.maybeWhen(
-          loaded: (s) => s.searchQuery,
-          orElse: () => null,
-        ),
-      ));
+      );
     } catch (e) {
       emit(LandState.error(e.toString()));
     }
@@ -137,32 +153,36 @@ class LandBloc extends Bloc<LandEvent, LandState> {
     Emitter<LandState> emit,
   ) async {
     emit(const LandState.loading());
-    
+
     try {
-      final listings = await _repository.getLandListings(
+      final List<String> favoriteIds = await _repository.getFavoriteIds();
+      final List<LandPlot> listings = await _repository.getLandListings(
         country: event.country,
         sortBy: state.maybeWhen(
-          loaded: (s) => s.sortBy,
+          loaded: (LandStateLoaded s) => s.sortBy,
           orElse: () => null,
         ),
         searchQuery: state.maybeWhen(
-          loaded: (s) => s.searchQuery,
+          loaded: (LandStateLoaded s) => s.searchQuery,
           orElse: () => null,
         ),
       );
 
-      emit(LandState.loaded(
-        listings: listings,
-        country: event.country,
-        sortBy: state.maybeWhen(
-          loaded: (s) => s.sortBy,
-          orElse: () => null,
+      emit(
+        LandState.loaded(
+          listings: listings,
+          country: event.country,
+          sortBy: state.maybeWhen(
+            loaded: (LandStateLoaded s) => s.sortBy,
+            orElse: () => null,
+          ),
+          searchQuery: state.maybeWhen(
+            loaded: (LandStateLoaded s) => s.searchQuery,
+            orElse: () => null,
+          ),
+          favoriteIds: favoriteIds,
         ),
-        searchQuery: state.maybeWhen(
-          loaded: (s) => s.searchQuery,
-          orElse: () => null,
-        ),
-      ));
+      );
     } catch (e) {
       emit(LandState.error(e.toString()));
     }
@@ -173,32 +193,36 @@ class LandBloc extends Bloc<LandEvent, LandState> {
     Emitter<LandState> emit,
   ) async {
     emit(const LandState.loading());
-    
+
     try {
-      final listings = await _repository.getLandListings(
+      final List<String> favoriteIds = await _repository.getFavoriteIds();
+      final List<LandPlot> listings = await _repository.getLandListings(
         country: state.maybeWhen(
-          loaded: (s) => s.country,
+          loaded: (LandStateLoaded s) => s.country,
           orElse: () => null,
         ),
         sortBy: event.sortBy,
         searchQuery: state.maybeWhen(
-          loaded: (s) => s.searchQuery,
+          loaded: (LandStateLoaded s) => s.searchQuery,
           orElse: () => null,
         ),
       );
 
-      emit(LandState.loaded(
-        listings: listings,
-        country: state.maybeWhen(
-          loaded: (s) => s.country,
-          orElse: () => null,
+      emit(
+        LandState.loaded(
+          listings: listings,
+          country: state.maybeWhen(
+            loaded: (LandStateLoaded s) => s.country,
+            orElse: () => null,
+          ),
+          sortBy: event.sortBy,
+          searchQuery: state.maybeWhen(
+            loaded: (LandStateLoaded s) => s.searchQuery,
+            orElse: () => null,
+          ),
+          favoriteIds: favoriteIds,
         ),
-        sortBy: event.sortBy,
-        searchQuery: state.maybeWhen(
-          loaded: (s) => s.searchQuery,
-          orElse: () => null,
-        ),
-      ));
+      );
     } catch (e) {
       emit(LandState.error(e.toString()));
     }
@@ -211,30 +235,51 @@ class LandBloc extends Bloc<LandEvent, LandState> {
     emit(const LandState.loading());
 
     try {
-      final country = state.maybeWhen(
-        loaded: (s) => s.country,
+      final Country? country = state.maybeWhen(
+        loaded: (LandStateLoaded s) => s.country,
         orElse: () => null,
       );
 
-      final favoriteIds = await _repository.getFavoriteIds();
+      final List<String> favoriteIds = await _repository.getFavoriteIds();
 
-      final scoredListings = await _searchAndRankListings.call(
-        event.query,
-        country: country,
-        favoriteIds: favoriteIds,
-      );
+      final List<ScoredLandPlot> scoredListings = await _searchAndRankListings
+          .call(event.query, country: country, favoriteIds: favoriteIds);
 
       // Extract the plots from scored listings for backward compatibility
-      final listings = scoredListings.map((scored) => scored.plot).toList();
+      final List<LandPlot> listings = scoredListings
+          .map((ScoredLandPlot scored) => scored.plot)
+          .toList();
 
-      emit(LandState.loaded(
-        listings: listings,
-        scoredListings: scoredListings,
-        country: country,
-        searchQuery: event.query,
-      ));
+      emit(
+        LandState.loaded(
+          listings: listings,
+          scoredListings: scoredListings,
+          country: country,
+          searchQuery: event.query,
+          favoriteIds: favoriteIds,
+        ),
+      );
     } catch (e) {
       emit(LandState.error(e.toString()));
     }
+  }
+
+  Future<void> _onToggleFavorite(
+    ToggleFavorite event,
+    Emitter<LandState> emit,
+  ) async {
+    final LandState current = state;
+    if (current is! LandStateLoaded) return;
+
+    final Set<String> ids = Set<String>.from(current.favoriteIds);
+    if (ids.contains(event.plotId)) {
+      await _repository.removeFromFavorites(event.plotId);
+      ids.remove(event.plotId);
+    } else {
+      await _repository.addToFavorites(event.plotId);
+      ids.add(event.plotId);
+    }
+
+    emit(current.copyWith(favoriteIds: ids.toList()));
   }
 }

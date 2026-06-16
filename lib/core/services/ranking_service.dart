@@ -7,12 +7,12 @@ class RankingService {
     String query, {
     required List<String> favoriteIds,
   }) {
-    final lowerQuery = query.toLowerCase();
+    final String lowerQuery = query.toLowerCase();
 
-    final scored = listings.map((plot) {
-      var score = 0.0;
-      var searchRelevance = 0.0;
-      final matchReasons = <String>[];
+    final List<ScoredLandPlot> scored = listings.map((LandPlot plot) {
+      double score = 0.0;
+      double searchRelevance = 0.0;
+      final List<String> matchReasons = <String>[];
 
       // Search relevance scoring
       if (plot.title.toLowerCase().contains(lowerQuery)) {
@@ -52,7 +52,9 @@ class RankingService {
     }).toList();
 
     // Sort by score descending
-    scored.sort((a, b) => b.score.compareTo(a.score));
+    scored.sort(
+      (ScoredLandPlot a, ScoredLandPlot b) => b.score.compareTo(a.score),
+    );
 
     return scored;
   }

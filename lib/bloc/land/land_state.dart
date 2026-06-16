@@ -12,11 +12,12 @@ class LandState extends Equatable {
     SortOption? sortBy,
     String? searchQuery,
     bool isRefreshing,
+    List<String> favoriteIds,
   }) = LandStateLoaded;
   const factory LandState.error(String message) = LandStateError;
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => <Object?>[];
 
   T when<T>({
     required T Function() initial,
@@ -43,7 +44,8 @@ class LandState extends Equatable {
     if (this is LandStateLoaded && loaded != null) {
       return loaded(this as LandStateLoaded);
     }
-    if (this is LandStateError && error != null) return error(this as LandStateError);
+    if (this is LandStateError && error != null)
+      return error(this as LandStateError);
     return orElse();
   }
 }
@@ -64,6 +66,7 @@ class LandStateLoaded extends LandState {
     this.sortBy,
     this.searchQuery,
     this.isRefreshing = false,
+    this.favoriteIds = const <String>[],
   });
 
   final List<LandPlot> listings;
@@ -72,6 +75,7 @@ class LandStateLoaded extends LandState {
   final SortOption? sortBy;
   final String? searchQuery;
   final bool isRefreshing;
+  final List<String> favoriteIds;
 
   LandStateLoaded copyWith({
     List<LandPlot>? listings,
@@ -80,6 +84,7 @@ class LandStateLoaded extends LandState {
     SortOption? sortBy,
     String? searchQuery,
     bool? isRefreshing,
+    List<String>? favoriteIds,
   }) {
     return LandStateLoaded(
       listings: listings ?? this.listings,
@@ -88,18 +93,20 @@ class LandStateLoaded extends LandState {
       sortBy: sortBy ?? this.sortBy,
       searchQuery: searchQuery ?? this.searchQuery,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      favoriteIds: favoriteIds ?? this.favoriteIds,
     );
   }
 
   @override
-  List<Object?> get props => [
-        listings,
-        scoredListings,
-        country,
-        sortBy,
-        searchQuery,
-        isRefreshing,
-      ];
+  List<Object?> get props => <Object?>[
+    listings,
+    scoredListings,
+    country,
+    sortBy,
+    searchQuery,
+    isRefreshing,
+    favoriteIds,
+  ];
 }
 
 class LandStateError extends LandState {
@@ -108,5 +115,5 @@ class LandStateError extends LandState {
   final String message;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => <Object?>[message];
 }

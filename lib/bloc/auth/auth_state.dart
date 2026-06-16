@@ -5,7 +5,7 @@ abstract class AuthState extends Equatable {
   const AuthState();
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => <Object?>[];
 }
 
 /// Initial state — before the auth check has run.
@@ -25,7 +25,7 @@ class AuthAuthenticated extends AuthState {
   final User user;
 
   @override
-  List<Object?> get props => [user.uid];
+  List<Object?> get props => <Object?>[user.uid];
 }
 
 /// No user is signed in.
@@ -40,5 +40,5 @@ class AuthError extends AuthState {
   final String message;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => <Object?>[message];
 }

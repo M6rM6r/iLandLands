@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:confetti/confetti.dart';
-import 'package:lottie/lottie.dart';
-import 'package:gulflands/models/land_plot.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:gulflands/core/config/app_config.dart';
+import 'package:gulflands/models/land_plot.dart';
+import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 
 class AdvancedLandPlotCard extends StatefulWidget {
-
   const AdvancedLandPlotCard({
-    required this.plot, super.key,
+    required this.plot,
+    super.key,
     this.onTap,
     this.onFavorite,
     this.onShare,
@@ -46,7 +46,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
   late Animation<double> _scaleAnimation;
   late Animation<double> _favoriteAnimation;
   late ConfettiController _confettiControllerInstance;
-  
+
   bool _isFavorited = false;
   final bool _isLoading = false;
   bool _isHovered = false;
@@ -55,44 +55,36 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
   @override
   void initState() {
     super.initState();
-    
+
     _shimmerController = AnimationController(
-      duration: AppConfig.defaultAnimationDuration,
+      duration: AppConfig.defaultAnimationDuration, // Use AppConfig
       vsync: this,
     );
-    
+
     _favoriteController = AnimationController(
-      duration: AppConfig.fastAnimationDuration,
+      duration: AppConfig.fastAnimationDuration, // Use AppConfig
       vsync: this,
     );
-    
+
     _confettiController = AnimationController(
-      duration: AppConfig.slowAnimationDuration,
+      duration: AppConfig.slowAnimationDuration, // Use AppConfig
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(
-      begin: 0.95,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _shimmerController,
-      curve: Curves.elasticOut,
-    ));
-    
-    _favoriteAnimation = Tween<double>(
-      begin: 1,
-      end: 1.3,
-    ).animate(CurvedAnimation(
-      parent: _favoriteController,
-      curve: Curves.elasticOut,
-    ));
-    
+
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.elasticOut),
+    );
+
+    _favoriteAnimation = Tween<double>(begin: 1, end: 1.3).animate(
+      CurvedAnimation(parent: _favoriteController, curve: Curves.elasticOut),
+    );
+
     _confettiControllerInstance = ConfettiController(
       duration: const Duration(seconds: 1),
     );
-    
+
     _shimmerController.forward();
-    
+
     // Simulate image loading
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -110,6 +102,15 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
     super.dispose();
   }
 
+  // Centralized shadow configuration for consistent UI
+  static List<BoxShadow> _getCardShadow(bool isHovered) => <BoxShadow>[
+    BoxShadow(
+      color: Colors.black.withAlpha(isHovered ? 51 : 25), // 0.2 and 0.1 opacity
+      blurRadius: isHovered ? 20 : 10,
+      offset: Offset(0, isHovered ? 8 : 4),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return AnimationConfiguration.staggeredList(
@@ -121,7 +122,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
         child: FadeInAnimation(
           child: AnimatedBuilder(
             animation: _scaleAnimation,
-            builder: (context, child) {
+            builder: (BuildContext context, Widget? child) {
               return Transform.scale(
                 scale: _scaleAnimation.value,
                 child: MouseRegion(
@@ -135,31 +136,33 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
                         vertical: 8.h,
                       ),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppConfig.cardRadius.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(_isHovered ? 0.2 : 0.1),
-                            blurRadius: _isHovered ? 20 : 10,
-                            offset: Offset(0, _isHovered ? 8 : 4),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(
+                          AppConfig.cardRadius.r,
+                        ),
+                        boxShadow: _getCardShadow(_isHovered),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
+                          colors: <Color>[
                             Theme.of(context).colorScheme.surface,
-                            Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                            Theme.of(
+                              context,
+                            ).colorScheme.surface.withAlpha(242), // 0.95 * 255
                           ],
                         ),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withAlpha(51), // 0.2 * 255
                         ),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(AppConfig.cardRadius.r),
+                        borderRadius: BorderRadius.circular(
+                          AppConfig.cardRadius.r,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          children: <Widget>[
                             _buildImageSection(),
                             _buildContentSection(),
                             _buildActionSection(),
@@ -179,53 +182,54 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
 
   Widget _buildImageSection() {
     return Stack(
-      children: [
+      children: <Widget>[
         // Main Image
         SizedBox(
           height: AppConfig.imageHeight.h,
           width: double.infinity,
           child: AnimatedOpacity(
             opacity: _imageOpacity,
-            duration: AppConfig.defaultAnimationDuration,
+            duration: AppConfig.defaultAnimationDuration, // Use AppConfig
             child: CachedNetworkImage(
               imageUrl: widget.plot.imageUrls.first,
               fit: BoxFit.cover,
-              placeholder: (context, url) => Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  color: Colors.white,
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[200],
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.broken_image,
-                        size: 48.sp,
-                        color: Colors.grey[400],
-                      ),
-                      SizedBox(height: 8.h),
-                      Text(
-                        'Image not available',
-                        style: GoogleFonts.inter(
-                          fontSize: 12.sp,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+              placeholder: (BuildContext context, String url) =>
+                  Shimmer.fromColors(
+                    baseColor: Colors.grey[300]!,
+                    highlightColor: Colors.grey[100]!,
+                    child: Container(color: Colors.white),
                   ),
-                ),
-              ),
+              errorWidget: (BuildContext context, String url, Object error) =>
+                  Container(
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(
+                            Icons.broken_image,
+                            size: 48.sp,
+                            color: Colors.grey[400],
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Image not available',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               memCacheHeight: (AppConfig.imageHeight.h * 2).round(),
-              memCacheWidth: (MediaQuery.of(context).size.width * 2).round(),
+              memCacheWidth: (MediaQuery.of(context).size.width * 2)
+                  .round(), // Use AppConfig
             ),
           ),
         ),
-        
+
         // Gradient Overlay
         Positioned.fill(
           child: Container(
@@ -233,15 +237,15 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
+                colors: <Color>[
                   Colors.transparent,
-                  Colors.black.withOpacity(0.3),
-                ],
+                  Colors.black.withAlpha(76),
+                ], // 0.3 * 255 = 76.5
               ),
             ),
           ),
         ),
-        
+
         // Featured Badge
         if (widget.plot.isFeatured)
           Positioned(
@@ -249,15 +253,18 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
             right: 12.w,
             child: AnimatedBuilder(
               animation: _confettiController,
-              builder: (context, child) {
+              builder: (BuildContext context, Widget? child) {
                 return Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 6.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.amber[600],
                     borderRadius: BorderRadius.circular(20.r),
-                    boxShadow: [
+                    boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: Colors.amber.withOpacity(0.3),
+                        color: Colors.amber.withAlpha(76),
                         blurRadius: 8,
                         spreadRadius: 2,
                       ),
@@ -265,12 +272,8 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.star,
-                        size: 16.sp,
-                        color: Colors.white,
-                      ),
+                    children: <Widget>[
+                      Icon(Icons.star, size: 16.sp, color: Colors.white),
                       SizedBox(width: 4.w),
                       Text(
                         'FEATURED',
@@ -287,7 +290,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               },
             ),
           ),
-        
+
         // Price Badge
         Positioned(
           bottom: 12.h,
@@ -295,7 +298,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withAlpha(204), // 0.8 * 255
               borderRadius: BorderRadius.circular(8.r),
             ),
             child: Text(
@@ -308,12 +311,12 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
             ),
           ),
         ),
-        
+
         // Loading Overlay
         if (_isLoading)
           Positioned.fill(
             child: ColoredBox(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withAlpha(127), // 0.5 * 255
               child: Center(
                 child: Lottie.asset(
                   'assets/animations/loading.json',
@@ -323,7 +326,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               ),
             ),
           ),
-        
+
         // Confetti
         Positioned.fill(
           child: ConfettiWidget(
@@ -332,7 +335,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
             emissionFrequency: 0.05,
             numberOfParticles: 20,
             gravity: 0.1,
-            colors: const [
+            colors: const <Color>[
               Colors.amber,
               Colors.blue,
               Colors.green,
@@ -350,7 +353,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
       padding: EdgeInsets.all(AppConfig.defaultPadding.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           // Title
           Text(
             widget.plot.title,
@@ -360,15 +363,15 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               color: Theme.of(context).colorScheme.onSurface,
               height: 1.3,
             ),
-            maxLines: 2,
+            maxLines: 2, // Consider adding overflow: TextOverflow.ellipsis
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           SizedBox(height: 8.h),
-          
+
           // Location
           Row(
-            children: [
+            children: <Widget>[
               Icon(
                 Icons.location_on,
                 size: 16.sp,
@@ -380,7 +383,9 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
                   '${widget.plot.location}, ${widget.plot.countryDisplay}',
                   style: GoogleFonts.inter(
                     fontSize: 14.sp,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(
+                      (255 * 0.7).round(),
+                    ), // 0.7 * 255 = 178.5
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -389,27 +394,29 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               ),
             ],
           ),
-          
+
           SizedBox(height: 12.h),
-          
+
           // Description
           Text(
             widget.plot.description,
             style: GoogleFonts.inter(
-              fontSize: 14.sp,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              fontSize: 14.sp, // Consider using a const for common font sizes
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(
+                (255 * 0.6).round(),
+              ), // 0.6 * 255 = 153
               height: 1.4,
             ),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           SizedBox(height: 16.h),
-          
+
           // Stats Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+            children: <Widget>[
               _buildStatItem(
                 icon: Icons.square_foot,
                 label: 'Area',
@@ -419,7 +426,8 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               _buildStatItem(
                 icon: Icons.trending_up,
                 label: 'Price/m²',
-                value: 'SAR ${widget.plot.pricePerSquareMeter.toStringAsFixed(0)}',
+                value:
+                    'SAR ${widget.plot.pricePerSquareMeter.toStringAsFixed(0)}',
                 color: Colors.green,
               ),
               _buildStatItem(
@@ -442,12 +450,8 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
     required Color color,
   }) {
     return Column(
-      children: [
-        Icon(
-          icon,
-          size: 20.sp,
-          color: color,
-        ),
+      children: <Widget>[
+        Icon(icon, size: 20.sp, color: color),
         SizedBox(height: 4.h),
         Text(
           value,
@@ -475,16 +479,18 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
         vertical: 12.h,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+        // Consider extracting this to a theme or constant
+        // for consistency
+        color: Theme.of(context).colorScheme.surface.withAlpha(127),
         border: Border(
           top: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            color: Theme.of(context).colorScheme.outline.withAlpha(51),
           ),
         ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
+        children: <Widget>[
           if (widget.showFavoriteButton)
             _buildActionButton(
               icon: _isFavorited ? Icons.favorite : Icons.favorite_border,
@@ -493,7 +499,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               isActive: _isFavorited,
               color: Colors.red,
             ),
-          
+
           if (widget.showShareButton)
             _buildActionButton(
               icon: Icons.share,
@@ -501,7 +507,7 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
               onTap: widget.onShare,
               color: Colors.blue,
             ),
-          
+
           if (widget.showContactButton)
             _buildActionButton(
               icon: Icons.phone,
@@ -518,11 +524,14 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
     required IconData icon,
     required String label,
     required VoidCallback? onTap,
-    required Color color, bool isActive = false,
+    required Color color,
+    bool isActive = false,
   }) {
     return AnimatedBuilder(
-      animation: isActive ? _favoriteAnimation : const AlwaysStoppedAnimation(1),
-      builder: (context, child) {
+      animation: isActive
+          ? _favoriteAnimation
+          : const AlwaysStoppedAnimation(1),
+      builder: (BuildContext context, Widget? child) {
         return Transform.scale(
           scale: isActive ? _favoriteAnimation.value : 1.0,
           child: GestureDetector(
@@ -530,19 +539,29 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
               decoration: BoxDecoration(
-                color: isActive ? color.withOpacity(0.1) : Colors.transparent,
+                // Consider extracting this to a theme or constant
+                // for consistency
+                color: isActive ? color.withAlpha(25) : Colors.transparent,
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(
-                  color: isActive ? color : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  color: isActive
+                      ? color
+                      : Theme.of(context).colorScheme.outline.withAlpha(
+                          (255 * 0.3).round(),
+                        ), // 0.3 * 255 = 76.5
                 ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+                children: <Widget>[
                   Icon(
                     icon,
                     size: 20.sp,
-                    color: isActive ? color : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: isActive
+                        ? color
+                        : Theme.of(context).colorScheme.onSurface.withAlpha(
+                            (255 * 0.7).round(),
+                          ), // 0.7 * 255 = 178.5
                   ),
                   SizedBox(height: 2.h),
                   Text(
@@ -550,7 +569,11 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
                     style: GoogleFonts.inter(
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w500,
-                      color: isActive ? color : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      color: isActive
+                          ? color
+                          : Theme.of(context).colorScheme.onSurface.withAlpha(
+                              (255 * 0.7).round(),
+                            ), // 0.7 * 255 = 178.5
                     ),
                   ),
                 ],
@@ -565,16 +588,19 @@ class _AdvancedLandPlotCardState extends State<AdvancedLandPlotCard>
   Future<void> _handleFavorite() async {
     if (widget.onFavorite != null) {
       setState(() => _isFavorited = !_isFavorited);
-      
+
       if (_isFavorited) {
-        _favoriteController.forward();
-        _confettiControllerInstance.play();
+        // Use await for Future calls
+        await _favoriteController.forward();
+        _confettiControllerInstance
+            .play(); // This is fire-and-forget, no await needed
       } else {
-        _favoriteController.reverse();
+        // Use await for Future calls
+        await _favoriteController.reverse();
       }
-      
-      widget.onFavorite!();
-      
+
+      widget.onFavorite!(); // This is fire-and-forget, no await needed
+
       // Reset animation
       if (_isFavorited) {
         await Future<void>.delayed(const Duration(milliseconds: 300));

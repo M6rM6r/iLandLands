@@ -3,18 +3,11 @@ import 'package:gulflands/core/utils/land_plot_validator.dart' as validator;
 
 // Enum to represent the countries in the Gulf region.
 // Using an enum ensures data integrity and prevents typos.
-enum Country {
-  saudiArabia,
-  uae,
-  qatar,
-  bahrain,
-  oman,
-  kuwait,
-}
+enum Country { saudiArabia, uae, qatar, bahrain, oman, kuwait }
 
 Country countryFromString(String value) {
   return Country.values.firstWhere(
-    (country) => country.name == value,
+    (Country country) => country.name == value,
     orElse: () => Country.saudiArabia,
   );
 }
@@ -23,7 +16,6 @@ Country countryFromString(String value) {
 // This structure is the definitive contract for all land data in the app.
 @immutable
 class LandPlot {
-
   const LandPlot({
     required this.id,
     required this.title,
@@ -33,14 +25,15 @@ class LandPlot {
     required this.country,
     required this.location,
     required this.imageUrls,
-    required this.createdAt, this.isFeatured = false,
+    required this.createdAt,
+    this.isFeatured = false,
     this.updatedAt,
   });
 
   factory LandPlot.fromJson(Map<String, dynamic> json) {
     // Validate data against contract
     if (!validator.LandPlotValidator.validate(json)) {
-      final errors = validator.LandPlotValidator.getErrors(json);
+      final List<String> errors = validator.LandPlotValidator.getErrors(json);
       throw FormatException('Invalid land plot data: ${errors.join(', ')}');
     }
 
@@ -52,9 +45,13 @@ class LandPlot {
       area: (json['area'] as num).toDouble(),
       country: countryFromString(json['country'] as String),
       location: json['location'] as String,
-      imageUrls: (json['imageUrls'] as List<dynamic>).map((e) => e as String).toList(),
+      imageUrls: (json['imageUrls'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
       isFeatured: (json['isFeatured'] as bool?) ?? false,
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
       updatedAt: json['updatedAt'] == null
           ? null
           : DateTime.tryParse(json['updatedAt'] as String),
@@ -73,7 +70,7 @@ class LandPlot {
   final DateTime? updatedAt;
 
   Map<String, dynamic> toJson() {
-    return {
+    return <String, dynamic>{
       'id': id,
       'title': title,
       'description': description,
@@ -91,14 +88,11 @@ class LandPlot {
 
   // Computed properties for better UI experience
   String get formattedPrice {
-    return 'SAR ${price.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},'
-    )}';
+    return 'SAR ${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }
 
   String get formattedArea {
-    return area >= 10000 
+    return area >= 10000
         ? '${(area / 10000).toStringAsFixed(1)} hectares'
         : '${area.toStringAsFixed(0)} m²';
   }

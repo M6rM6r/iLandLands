@@ -25,12 +25,15 @@ This document provides comprehensive setup instructions, development workflows, 
 - PHP: 8.1 or later
 - Composer: Latest stable
 - Python: 3.9 or later
+- FastAPI / Pydantic v2
 - pip: Latest stable
-- Node.js: 18.x or later (for tooling)
+- Node.js: 20.x or later / TypeScript 5.x
 
 #### Database & Tools
 - MySQL 8.0 or PostgreSQL 13+
-- Docker Desktop 4.0+
+ - Redis 7.0 (Caching Layer)
+ - Meilisearch (Vector Search)
+ - Docker Desktop 4.0+
 - Git: 2.30+
 
 ## Project Setup
@@ -65,7 +68,7 @@ flutter doctor
 #### PHP Backend Setup
 
 ```bash
-cd backend-php
+cd backend
 
 # Install PHP dependencies
 composer install
@@ -106,7 +109,7 @@ docker run --name gulflands-db -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=gul
 # Or using local MySQL installation
 mysql -u root -p
 CREATE DATABASE gulflands;
-# Run migrations from backend-php/migrations/
+# Run migrations from backend/database/migrations/
 ```
 
 ### 3. Docker Development Environment
@@ -163,7 +166,7 @@ flutter run -d chrome  # For web development
 
 # Run tests frequently
 flutter test
-cd backend-php && composer test
+cd backend && composer test
 cd backend-python && python -m pytest
 ```
 
@@ -175,15 +178,15 @@ flutter analyze
 flutter format .
 
 # PHP
-cd backend-php
-./vendor/bin/phpcs
-./vendor/bin/phpmd src text codesize,unusedcode,naming
+cd backend
+make analyze-php
+make test-php
 
 # Python
 cd backend-python
-flake8 .
-black .
-mypy .
+ruff check .
+black --check .
+mypy --strict .
 ```
 
 #### 4. Commit and Push
@@ -225,7 +228,7 @@ git push origin feature/GULF-123-user-authentication
 flutter test --coverage
 
 # PHP
-cd backend-php
+cd backend
 ./vendor/bin/phpunit --coverage-html coverage
 
 # Python
@@ -293,6 +296,19 @@ git push origin main --tags
 
 # Deploy to production
 ./scripts/deploy-production.sh
+
+#### Web Deployment (Firebase)
+
+Ensure the Firebase CLI is installed and authenticated:
+```bash
+npm install -g firebase-tools
+firebase login
+```
+
+Deploy using the automation task:
+```bash
+make deploy-web
+```
 
 # Monitor deployment
 # Check logs, metrics, error rates

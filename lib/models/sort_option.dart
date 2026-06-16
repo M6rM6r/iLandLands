@@ -14,7 +14,7 @@ enum SortOption {
 
   static SortOption fromString(String value) {
     return SortOption.values.firstWhere(
-      (option) => option.value == value,
+      (SortOption option) => option.value == value,
       orElse: () => SortOption.relevance,
     );
   }

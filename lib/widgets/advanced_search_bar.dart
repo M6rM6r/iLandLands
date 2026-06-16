@@ -3,9 +3,11 @@ import 'package:gulflands/models/land_plot.dart';
 import 'package:gulflands/models/sort_option.dart';
 
 class AdvancedSearchBar extends StatefulWidget {
-
   const AdvancedSearchBar({
-    required this.onSearchChanged, required this.onCountryFilterChanged, required this.onSortChanged, super.key,
+    required this.onSearchChanged,
+    required this.onCountryFilterChanged,
+    required this.onSortChanged,
+    super.key,
     this.selectedCountry,
     this.selectedSortOption,
     this.searchQuery = '',
@@ -45,12 +47,12 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
+    final ThemeData theme = Theme.of(context);
+
     return Container(
       margin: const EdgeInsets.all(16),
       child: Column(
-        children: [
+        children: <Widget>[
           // Search Input Field
           DecoratedBox(
             decoration: BoxDecoration(
@@ -90,9 +92,9 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
               ),
             ),
           ),
-          
+
           // Advanced Filters (Expandable)
-          if (_isExpanded) ...[
+          if (_isExpanded) ...<Widget>[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -105,7 +107,7 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   Text(
                     'Advanced Filters',
                     style: theme.textTheme.titleMedium?.copyWith(
@@ -113,10 +115,10 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Country Filter
                   Row(
-                    children: [
+                    children: <Widget>[
                       Icon(
                         Icons.location_city,
                         size: 20,
@@ -140,17 +142,19 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
                           onChanged: (Country? newValue) {
                             widget.onCountryFilterChanged(newValue);
                           },
-                          items: [
+                          items: <DropdownMenuItem<Country?>>[
                             const DropdownMenuItem<Country?>(
                               child: Text('All Countries'),
                             ),
                             ...Country.values.map((Country country) {
                               return DropdownMenuItem<Country>(
                                 value: country,
-                                child: Text(country.name
-                                    .split('')
-                                    .map((e) => e.toUpperCase())
-                                    .join()),
+                                child: Text(
+                                  country.name
+                                      .split('')
+                                      .map((String e) => e.toUpperCase())
+                                      .join(),
+                                ),
                               );
                             }),
                           ],
@@ -158,12 +162,12 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Sort Options
                   Row(
-                    children: [
+                    children: <Widget>[
                       Icon(
                         Icons.sort,
                         size: 20,
@@ -187,7 +191,7 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
                           onChanged: (SortOption? newValue) {
                             widget.onSortChanged(newValue);
                           },
-                          items: [
+                          items: <DropdownMenuItem<SortOption?>>[
                             const DropdownMenuItem<SortOption?>(
                               child: Text('Default Order'),
                             ),

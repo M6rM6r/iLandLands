@@ -6,7 +6,6 @@ import 'package:gulflands/domain/usecases/get_land_listings.dart';
 import 'package:gulflands/domain/usecases/toggle_favorite.dart';
 
 class LandProvider with ChangeNotifier {
-
   LandProvider({
     required this.getLandListings,
     required this.toggleFavorite,
@@ -19,9 +18,9 @@ class LandProvider with ChangeNotifier {
   final FilterListings filterListings;
 
   // ignore: unused_field
-  List<LandPlot> _allPlots = [];
-  List<LandPlot> _filteredPlots = [];
-  List<String> _favoriteIds = [];
+  List<LandPlot> _allPlots = <LandPlot>[];
+  List<LandPlot> _filteredPlots = <LandPlot>[];
+  List<String> _favoriteIds = <String>[];
   Country? _selectedCountry;
   SortOption? _selectedSortOption;
   bool _isLoading = false;

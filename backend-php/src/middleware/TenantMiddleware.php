@@ -7,6 +7,7 @@ namespace App\Middleware;
 use PDO;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
@@ -28,10 +29,12 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 class TenantMiddleware implements MiddlewareInterface
 {
     private PDO $db;
+    private ResponseFactoryInterface $responseFactory;
 
-    public function __construct(PDO $db)
+    public function __construct(PDO $db, ResponseFactoryInterface $responseFactory)
     {
         $this->db = $db;
+        $this->responseFactory = $responseFactory;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -84,7 +87,7 @@ class TenantMiddleware implements MiddlewareInterface
     /** Emit a JSON error response. */
     private function error(int $status, string $message): Response
     {
-        $response = new \Slim\Psr7\Response();
+        $response = $this->responseFactory->createResponse($status);
         $response->getBody()->write(json_encode([
             'error'   => $this->statusLabel($status),
             'message' => $message,

@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -12,6 +13,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from valuation_engine import LandValuationEngine
 
 app = FastAPI(title="Gulf Lands API", version="1.0.0")
 
@@ -22,9 +24,15 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # Security Middleware
+_cors_origins = os.getenv(
+    "CORS_ORIGINS",
+    "https://gulflands.com,https://www.gulflands.com,http://localhost:*",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://gulflands.com", "https://www.gulflands.com"],  # Restrict to specific domains
+    allow_origins=[o.strip() for o in _cors_origins if o.strip()],
+    allow_origin_regex=r"http://localhost(:\d+)?",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -32,7 +40,10 @@ app.add_middleware(
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["gulflands-api.com", "*.gulflands-api.com"]  # Configure for production
+    allowed_hosts=[h.strip() for h in os.getenv(
+        "ALLOWED_HOSTS",
+        "gulflands-api.com,*.gulflands-api.com,localhost,127.0.0.1",
+    ).split(",")],
 )
 
 # Security headers middleware
@@ -94,6 +105,10 @@ sample_plots = [
         createdAt=datetime(2023, 1, 4),
     ),
 ]
+
+@app.get("/health", summary="Health probe (Docker/K8s)")
+async def health():
+    return {"status": "healthy"}
 
 @app.get("/health/live", summary="Liveness probe")
 async def liveness():
@@ -191,3 +206,29 @@ async def track_event(request: Request, event: dict):
 
         print(f"Event tracked: {event}")
     return {"status": "ok"}
+
+class ValuationRequest(BaseModel):
+    country: str
+    area_sqm: float = Field(..., ge=0)
+    coastal_distance_km: float = Field(..., ge=0)
+    zoning: str
+    city: Optional[str] = "default"
+
+@app.post("/v1/valuation/estimate", summary="Perform mathematical estimation of land plot value")
+@limiter.limit("30/minute")
+async def estimate_valuation(request: Request, body: ValuationRequest):
+    try:
+        val = LandValuationEngine.calculate_valuation(
+            country=body.country,
+            area_sqm=body.area_sqm,
+            coastal_distance_km=body.coastal_distance_km,
+            zoning=body.zoning,
+            city=body.city
+        )
+        return {
+            "estimated_value": val,
+            "currency": "SAR" if body.country == "saudiArabia" else ("AED" if body.country == "uae" else "USD"),
+            "formula": "V = P_base * Area^alpha * e^(-lambda * d) * Z_z * C_r"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

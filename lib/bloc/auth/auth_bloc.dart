@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'auth_event.dart';
-import 'auth_state.dart';
+import 'package:gulflands/bloc/auth/auth_event.dart';
+import 'package:gulflands/bloc/auth/auth_state.dart';
 
 /// Manages Firebase Auth lifecycle for the entire app.
 ///
@@ -10,8 +10,8 @@ import 'auth_state.dart';
 /// - Emits [AuthError] on failed login / register.
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({FirebaseAuth? firebaseAuth})
-      : _auth = firebaseAuth ?? FirebaseAuth.instance,
-        super(const AuthInitial()) {
+    : _auth = firebaseAuth ?? FirebaseAuth.instance,
+      super(const AuthInitial()) {
     on<AuthCheckRequested>(_onCheckRequested);
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthRegisterRequested>(_onRegisterRequested);
@@ -28,7 +28,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthCheckRequested event,
     Emitter<AuthState> emit,
   ) async {
-    final currentUser = _auth.currentUser;
+    final User? currentUser = _auth.currentUser;
     if (currentUser != null) {
       emit(AuthAuthenticated(user: currentUser));
     } else {
@@ -42,7 +42,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
-      final credential = await _auth.signInWithEmailAndPassword(
+      final UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: event.email.trim(),
         password: event.password,
       );
@@ -50,7 +50,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _mapFirebaseError(e)));
     } catch (e) {
-      emit(AuthError(message: 'An unexpected error occurred.'));
+      emit(const AuthError(message: 'An unexpected error occurred.'));
     }
   }
 
@@ -60,16 +60,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: event.email.trim(),
-        password: event.password,
-      );
+      final UserCredential credential = await _auth
+          .createUserWithEmailAndPassword(
+            email: event.email.trim(),
+            password: event.password,
+          );
       await credential.user!.updateDisplayName(event.displayName);
       emit(AuthAuthenticated(user: credential.user!));
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _mapFirebaseError(e)));
     } catch (e) {
-      emit(AuthError(message: 'An unexpected error occurred.'));
+      emit(const AuthError(message: 'An unexpected error occurred.'));
     }
   }
 

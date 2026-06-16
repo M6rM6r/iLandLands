@@ -58,7 +58,7 @@ class SecureStorageService {
 
   // Check if user is authenticated
   static Future<bool> isAuthenticated() async {
-    final token = await getUserToken();
+    final String? token = await getUserToken();
     return token != null && token.isNotEmpty;
   }
 }

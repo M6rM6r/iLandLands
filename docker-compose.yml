@@ -115,20 +115,71 @@ services:
       dockerfile: Dockerfile
     container_name: gulflands_analytics
     restart: unless-stopped
+    ports:
+      - "${ANALYTICS_PORT:-8002}:8000"
     environment:
-      - DATABASE_URL=mysql://${MYSQL_USER:-gulflands_user}:${MYSQL_PASSWORD:-secure_password_123}@mysql:3306/${MYSQL_DATABASE:-gulflands}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-gulflands_user}:${POSTGRES_PASSWORD:-secure_password_123}@postgres:5432/${POSTGRES_DB:-gulflands_analytics}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_password_123}@redis:6379/0
       - LOG_LEVEL=${ANALYTICS_LOG_LEVEL:-INFO}
     volumes:
       - ./analytics/logs:/app/logs
       - ./analytics/config:/app/config:ro
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
       - gulflands_network
+
+  # Python API (valuation + listings)
+  backend-python:
+    build:
+      context: ./backend-python
+      dockerfile: Dockerfile
+    container_name: gulflands_python_api
+    restart: unless-stopped
+    ports:
+      - "${PYTHON_API_PORT:-8000}:8000"
+    environment:
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - gulflands_network
+
+  # Recommendation microservice
+  reco-service:
+    build:
+      context: ./reco-service
+      dockerfile: Dockerfile
+    container_name: gulflands_reco
+    restart: unless-stopped
+    ports:
+      - "${RECO_PORT:-8001}:8001"
+    networks:
+      - gulflands_network
+
+  # PostgreSQL (analytics only)
+  postgres:
+    image: postgres:16-alpine
+    container_name: gulflands_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gulflands_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_123}
+      POSTGRES_DB: ${POSTGRES_DB:-gulflands_analytics}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./analytics/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    networks:
+      - gulflands_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gulflands_user} -d ${POSTGRES_DB:-gulflands_analytics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Monitoring Service (Prometheus)
   prometheus:
@@ -233,6 +284,8 @@ services:
 
 volumes:
   mysql_data:
+    driver: local
+  postgres_data:
     driver: local
   redis_data:
     driver: local

@@ -14,9 +14,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -28,20 +28,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(AuthLoginRequested(
-          email: _emailController.text,
-          password: _passwordController.text,
-        ));
+    context.read<AuthBloc>().add(
+      AuthLoginRequested(
+        email: _emailController.text,
+        password: _passwordController.text,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: SafeArea(
         child: BlocConsumer<AuthBloc, AuthState>(
-          listener: (context, state) {
+          listener: (BuildContext context, AuthState state) {
             if (state is AuthError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -52,8 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
             }
             // Navigation on success is handled by app.dart via BlocBuilder
           },
-          builder: (context, state) {
-            final isLoading = state is AuthLoading;
+          builder: (BuildContext context, AuthState state) {
+            final bool isLoading = state is AuthLoading;
 
             return Center(
               child: SingleChildScrollView(
@@ -65,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                      children: <Widget>[
                         // Logo / Branding
                         Icon(
                           Icons.landscape_outlined,
@@ -76,7 +78,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           'Gulf Lands',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.primary,
                               ),
@@ -85,9 +88,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           'Sign in to your account',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 32),
 
@@ -101,11 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             labelText: 'Email',
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
-                          validator: (v) {
+                          validator: (String? v) {
                             if (v == null || v.trim().isEmpty) {
                               return 'Email is required';
                             }
-                            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
+                            if (!RegExp(
+                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                            ).hasMatch(v.trim())) {
                               return 'Enter a valid email address';
                             }
                             return null;
@@ -133,8 +137,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Password is required' : null,
+                          validator: (String? v) => (v == null || v.isEmpty)
+                              ? 'Password is required'
+                              : null,
                         ),
                         const SizedBox(height: 24),
 
@@ -145,7 +150,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text('Sign In'),
                         ),

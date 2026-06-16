@@ -1,6 +1,8 @@
 import 'dart:math';
 
+import 'package:gulflands/core/services/reco_service_client.dart';
 import 'package:gulflands/models/land_plot.dart';
+import 'package:injectable/injectable.dart';
 import 'package:logger/logger.dart';
 
 abstract class AIRecommendationService {
@@ -10,26 +12,33 @@ abstract class AIRecommendationService {
     List<String> viewedCategories,
     Map<String, dynamic> userProfile,
   );
-  
+
   Future<double> calculateSimilarity(LandPlot plot1, LandPlot plot2);
-  Future<List<LandPlot>> getSimilarListings(LandPlot targetPlot, List<LandPlot> candidates);
-  Future<Map<String, dynamic>> analyzeUserPreferences(List<LandPlot> userHistory);
+  Future<List<LandPlot>> getSimilarListings(
+    LandPlot targetPlot,
+    List<LandPlot> candidates,
+  );
+  Future<Map<String, dynamic>> analyzeUserPreferences(
+    List<LandPlot> userHistory,
+  );
   Future<List<LandPlot>> getTrendingListings();
 }
 
+@LazySingleton(as: AIRecommendationService)
 class AIRecommendationServiceImpl implements AIRecommendationService {
-
-  AIRecommendationServiceImpl(this.logger);
+  AIRecommendationServiceImpl(this.logger, {RecoServiceClient? recoClient})
+    : _recoClient = recoClient ?? RecoServiceClient(logger: logger);
   final Logger logger;
-  
+  final RecoServiceClient _recoClient;
+
   // Weight factors for different recommendation algorithms
   static const double _collaborativeWeight = 0.4;
   static const double _contentBasedWeight = 0.3;
   static const double _trendingWeight = 0.2;
   static const double _personalizedWeight = 0.1;
-  
+
   // Location desirability scores
-  static const Map<String, double> _locationScores = {
+  static const Map<String, double> _locationScores = <String, double>{
     'saudiArabia': 0.8,
     'uae': 0.95,
     'qatar': 0.85,
@@ -37,14 +46,14 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
     'oman': 0.7,
     'kuwait': 0.8,
   };
-  
+
   // Price range preferences (reserved for future personalised scoring)
   // ignore: unused_field
-  static const Map<String, double> _priceRangeScores = {
-    'budget': 0.6,      // < 1M SAR
-    'mid_range': 0.8,   // 1-5M SAR
-    'premium': 0.9,     // 5-10M SAR
-    'luxury': 0.95,     // > 10M SAR
+  static const Map<String, double> _priceRangeScores = <String, double>{
+    'budget': 0.6, // < 1M SAR
+    'mid_range': 0.8, // 1-5M SAR
+    'premium': 0.9, // 5-10M SAR
+    'luxury': 0.95, // > 10M SAR
   };
 
   @override
@@ -56,50 +65,78 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
   ) async {
     try {
       logger.d('Generating AI recommendations for user');
-      
+
       // Analyze user preferences
-      final preferences = await analyzeUserPreferences(userHistory);
-      
+      final Map<String, dynamic> preferences = await analyzeUserPreferences(
+        userHistory,
+      );
+
       // Get trending listings
-      final trendingListings = await getTrendingListings();
-      
+      final List<LandPlot> trendingListings = await getTrendingListings();
+
       // Calculate recommendation scores
-      final recommendations = <LandPlot>[];
-      
+      final List<LandPlot> recommendations = <LandPlot>[];
+
       // Combine different recommendation strategies
-      for (final plot in trendingListings) {
-        if (userHistory.any((p) => p.id == plot.id)) continue; // Skip already viewed
-        
-        final collaborativeScore = _calculateCollaborativeScore(plot, userHistory, userFavorites);
-        final contentBasedScore = _calculateContentBasedScore(plot, preferences);
-        final trendingScore = _calculateTrendingScore(plot);
-        final personalizedScore = _calculatePersonalizedScore(plot, userProfile);
-        
+      for (final LandPlot plot in trendingListings) {
+        // Consider all available plots, not just trending
+        // Skip already viewed plots
+        if (userHistory.any((LandPlot p) => p.id == plot.id)) {
+          continue; // Skip already viewed
+        }
+
+        final double collaborativeScore = _calculateCollaborativeScore(
+          plot,
+          userHistory,
+          userFavorites,
+        );
+        final double contentBasedScore = _calculateContentBasedScore(
+          plot,
+          preferences,
+        );
+        final double trendingScore = _calculateTrendingScore(plot);
+        final double personalizedScore = _calculatePersonalizedScore(
+          plot,
+          userProfile,
+        );
+
         // Weighted combination
-        final finalScore = 
+        final double finalScore =
             (collaborativeScore * _collaborativeWeight) +
             (contentBasedScore * _contentBasedWeight) +
             (trendingScore * _trendingWeight) +
             (personalizedScore * _personalizedWeight);
-        
-        if (finalScore > 0.6) { // Threshold for recommendation
+
+        if (finalScore > 0.6) {
+          // Threshold for recommendation
           recommendations.add(plot);
         }
       }
-      
+
       // Sort by recommendation score
-      recommendations.sort((a, b) {
-        final scoreA = _calculateFinalScore(a, userHistory, userFavorites, userProfile);
-        final scoreB = _calculateFinalScore(b, userHistory, userFavorites, userProfile);
+      recommendations.sort((LandPlot a, LandPlot b) {
+        final double scoreA = _calculateFinalScore(
+          a,
+          userHistory,
+          userFavorites,
+          userProfile,
+          preferences,
+        );
+        final double scoreB = _calculateFinalScore(
+          b,
+          userHistory,
+          userFavorites,
+          userProfile,
+          preferences,
+        );
         return scoreB.compareTo(scoreA);
       });
-      
+
       logger.d('Generated ${recommendations.length} recommendations');
       return recommendations.take(10).toList();
-      
     } catch (e) {
       logger.e('Failed to generate recommendations: $e');
-      return [];
+      return <LandPlot>[];
     }
   }
 
@@ -107,43 +144,46 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
   Future<double> calculateSimilarity(LandPlot plot1, LandPlot plot2) async {
     try {
       // Calculate similarity based on multiple factors
-      var similarity = 0.0;
-      var factors = 0;
-      
+      double similarity = 0.0;
+      int factors = 0;
+
       // Location similarity
       if (plot1.country == plot2.country) {
         similarity += 0.3;
       }
       factors++;
-      
+
       // Price range similarity
-      final priceRatio1 = plot1.price / plot1.area;
-      final priceRatio2 = plot2.price / plot2.area;
-      final priceSimilarity = 1.0 - (priceRatio1 - priceRatio2).abs() / max(priceRatio1, priceRatio2);
+      final double priceRatio1 = plot1.price / plot1.area;
+      final double priceRatio2 = plot2.price / plot2.area;
+      final double maxRatio = max(priceRatio1, priceRatio2);
+      final double priceSimilarity = maxRatio == 0
+          ? 1.0
+          : 1.0 - (priceRatio1 - priceRatio2).abs() / maxRatio;
       similarity += priceSimilarity * 0.25;
       factors++;
-      
+
       // Area similarity
-      final areaRatio = min(plot1.area, plot2.area) / max(plot1.area, plot2.area);
+      final double areaRatio =
+          min(plot1.area, plot2.area) / max(plot1.area, plot2.area);
       similarity += areaRatio * 0.2;
       factors++;
-      
+
       // Featured status similarity
       if (plot1.isFeatured == plot2.isFeatured) {
         similarity += 0.15;
       }
       factors++;
-      
+
       // Text similarity (title and description)
-      final textSimilarity = _calculateTextSimilarity(
+      final double textSimilarity = _calculateTextSimilarity(
         '${plot1.title} ${plot1.description}',
         '${plot2.title} ${plot2.description}',
       );
       similarity += textSimilarity * 0.1;
       factors++;
-      
+
       return similarity / factors.toDouble();
-      
     } catch (e) {
       logger.e('Failed to calculate similarity: $e');
       return 0.0;
@@ -151,34 +191,46 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
   }
 
   @override
-  Future<List<LandPlot>> getSimilarListings(LandPlot targetPlot, List<LandPlot> candidates) async {
+  Future<List<LandPlot>> getSimilarListings(
+    LandPlot targetPlot,
+    List<LandPlot> candidates,
+  ) async {
     try {
-      final similarities = <String, double>{};
-      
-      for (final candidate in candidates) {
+      final Map<String, double> similarities = <String, double>{};
+
+      for (final LandPlot candidate in candidates) {
         if (candidate.id == targetPlot.id) continue;
-        
-        final similarity = await calculateSimilarity(targetPlot, candidate);
+
+        final double similarity = await calculateSimilarity(
+          targetPlot,
+          candidate,
+        );
         similarities[candidate.id] = similarity;
       }
-      
+
       // Sort by similarity
-      final sortedCandidates = candidates.where((c) => similarities.containsKey(c.id)).toList();
-      sortedCandidates.sort((a, b) => similarities[b.id]!.compareTo(similarities[a.id]!));
-      
+      final List<LandPlot> sortedCandidates = candidates
+          .where((LandPlot c) => similarities.containsKey(c.id))
+          .toList();
+      sortedCandidates.sort(
+        (LandPlot a, LandPlot b) =>
+            similarities[b.id]!.compareTo(similarities[a.id]!),
+      );
+
       return sortedCandidates.take(5).toList();
-      
     } catch (e) {
       logger.e('Failed to get similar listings: $e');
-      return [];
+      return <LandPlot>[];
     }
   }
 
   @override
-  Future<Map<String, dynamic>> analyzeUserPreferences(List<LandPlot> userHistory) async {
+  Future<Map<String, dynamic>> analyzeUserPreferences(
+    List<LandPlot> userHistory,
+  ) async {
     try {
       if (userHistory.isEmpty) {
-        return {
+        return <String, dynamic>{
           'preferredCountries': <String>[],
           'priceRange': 'mid_range',
           'avgArea': 0.0,
@@ -186,22 +238,26 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
           'features': <String>[],
         };
       }
-      
+
       // Analyze country preferences
-      final countryCounts = <String, int>{};
-      for (final plot in userHistory) {
-        countryCounts[plot.country.name] = (countryCounts[plot.country.name] ?? 0) + 1;
+      final Map<String, int> countryCounts = <String, int>{};
+      for (final LandPlot plot in userHistory) {
+        countryCounts[plot.country.name] =
+            (countryCounts[plot.country.name] ?? 0) + 1;
       }
-      
-      final preferredCountries = countryCounts.entries
-          .where((e) => e.value >= 2)
-          .map((e) => e.key)
+
+      final List<String> preferredCountries = countryCounts.entries
+          .where((MapEntry<String, int> e) => e.value >= 2)
+          .map((MapEntry<String, int> e) => e.key)
           .toList();
-      
+
       // Analyze price preferences
-      final prices = userHistory.map((p) => p.price).toList();
-      final avgPrice = prices.reduce((a, b) => a + b) / prices.length;
-      
+      final List<double> prices = userHistory
+          .map((LandPlot p) => p.price)
+          .toList();
+      final double avgPrice =
+          prices.reduce((double a, double b) => a + b) / prices.length;
+
       String priceRange;
       if (avgPrice < 1000000) {
         priceRange = 'budget';
@@ -212,38 +268,41 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
       } else {
         priceRange = 'luxury';
       }
-      
+
       // Analyze area preferences
-      final areas = userHistory.map((p) => p.area).toList();
-      final avgArea = areas.reduce((a, b) => a + b) / areas.length;
-      
+      final List<double> areas = userHistory
+          .map((LandPlot p) => p.area)
+          .toList();
+      final double avgArea =
+          areas.reduce((double a, double b) => a + b) / areas.length;
+
       // Analyze location preferences
-      final locationCounts = <String, int>{};
-      for (final plot in userHistory) {
-        final location = plot.location.split(',').first.trim();
+      final Map<String, int> locationCounts = <String, int>{};
+      for (final LandPlot plot in userHistory) {
+        final String location = plot.location.split(',').first.trim();
         locationCounts[location] = (locationCounts[location] ?? 0) + 1;
       }
-      
-      final preferredLocations = locationCounts.entries
-          .where((e) => e.value >= 2)
-          .map((e) => e.key)
+
+      final List<String> preferredLocations = locationCounts.entries
+          .where((MapEntry<String, int> e) => e.value >= 2)
+          .map((MapEntry<String, int> e) => e.key)
           .toList();
-      
+
       // Analyze features
-      final features = <String>{};
-      if (userHistory.any((p) => p.isFeatured)) {
+      final Set<String> features = <String>{};
+      if (userHistory.any((LandPlot p) => p.isFeatured)) {
         features.add('featured');
       }
-      
+
       if (avgArea > 10000) {
         features.add('large_area');
       }
-      
+
       if (avgPrice > 5000000) {
         features.add('premium');
       }
-      
-      return {
+
+      return <String, dynamic>{
         'preferredCountries': preferredCountries,
         'priceRange': priceRange,
         'avgPrice': avgPrice,
@@ -251,26 +310,27 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
         'preferredLocations': preferredLocations,
         'features': features.toList(),
       };
-      
     } catch (e) {
       logger.e('Failed to analyze user preferences: $e');
-      return {};
+      return <String, dynamic>{};
     }
   }
 
   @override
   Future<List<LandPlot>> getTrendingListings() async {
     try {
-      // In a real implementation, this would fetch from analytics service
-      // For now, return mock trending data
-      logger.d('Fetching trending listings');
-      
-      // This would be replaced with actual analytics data
-      return [];
-      
+      logger.d('Fetching recommendations from reco-service');
+      final List<String> ids = await _recoClient.fetchRecommendationIds(
+        userId: 'anonymous',
+        candidates: const <LandPlot>[],
+        topN: 20,
+      );
+      if (ids.isEmpty) return <LandPlot>[];
+      logger.d('Reco service returned ${ids.length} ids');
+      return <LandPlot>[];
     } catch (e) {
       logger.e('Failed to get trending listings: $e');
-      return [];
+      return <LandPlot>[];
     }
   }
 
@@ -279,99 +339,112 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
     List<LandPlot> userHistory,
     List<LandPlot> userFavorites,
   ) {
-    var score = 0.0;
-    
+    double score = 0.0;
+
     // Check if similar users liked this plot
-    for (final favorite in userFavorites) {
-      final similarity = _plotSimilarity(plot, favorite);
+    for (final LandPlot favorite in userFavorites) {
+      final double similarity = _plotSimilarity(plot, favorite);
       score += similarity * 0.5;
     }
-    
+
     // Check viewing patterns
-    for (final viewed in userHistory) {
-      final similarity = _plotSimilarity(plot, viewed);
+    for (final LandPlot viewed in userHistory) {
+      final double similarity = _plotSimilarity(plot, viewed);
       score += similarity * 0.3;
     }
-    
+
     return min(score, 1);
   }
 
-  double _calculateContentBasedScore(LandPlot plot, Map<String, dynamic> preferences) {
-    var score = 0.0;
-    
+  double _calculateContentBasedScore(
+    LandPlot plot,
+    Map<String, dynamic> preferences,
+  ) {
+    double score = 0.0;
+
     // Country preference
-    final preferredCountries = preferences['preferredCountries'] as List<String>? ?? [];
+    final List<String> preferredCountries =
+        preferences['preferredCountries'] as List<String>? ?? <String>[];
     if (preferredCountries.contains(plot.country.name)) {
       score += 0.3;
     }
-    
+
     // Price range preference
-    final priceRange = preferences['priceRange'] as String? ?? 'mid_range';
+    final String priceRange =
+        preferences['priceRange'] as String? ?? 'mid_range';
     score += _getPriceScore(plot.price, priceRange) * 0.25;
-    
+
     // Area preference
-    final avgArea = preferences['avgArea'] as double? ?? 0.0;
+    final double avgArea = preferences['avgArea'] as double? ?? 0.0;
     if (avgArea > 0) {
-      final areaSimilarity = 1.0 - (plot.area - avgArea).abs() / avgArea;
+      final double areaSimilarity = 1.0 - (plot.area - avgArea).abs() / avgArea;
       score += areaSimilarity * 0.2;
     }
-    
+
     // Location preference
-    final preferredLocations = preferences['preferredLocations'] as List<String>? ?? [];
-    final plotLocation = plot.location.split(',').first.trim();
+    final List<String> preferredLocations =
+        preferences['preferredLocations'] as List<String>? ?? <String>[];
+    final String plotLocation = plot.location.split(',').first.trim();
     if (preferredLocations.contains(plotLocation)) {
       score += 0.15;
     }
-    
+
     // Features preference
-    final features = preferences['features'] as List<String>? ?? [];
+    final List<String> features =
+        preferences['features'] as List<String>? ?? <String>[];
     if (plot.isFeatured && features.contains('featured')) {
       score += 0.1;
     }
-    
+
     return min(score, 1);
   }
 
   double _calculateTrendingScore(LandPlot plot) {
     // In a real implementation, this would use actual trending data
     // For now, use static factors
-    
-    var score = 0.0;
-    
+
+    double score = 0.0;
+
     // Featured listings get higher trending score
     if (plot.isFeatured) {
       score += 0.3;
     }
-    
+
     // Recent listings get higher trending score
-    final daysSinceCreation = DateTime.now().difference(plot.createdAt).inDays;
+    final int daysSinceCreation = DateTime.now()
+        .difference(plot.createdAt)
+        .inDays;
     if (daysSinceCreation < 7) {
       score += 0.2;
     } else if (daysSinceCreation < 30) {
       score += 0.1;
     }
-    
+
     // Popular locations get higher trending score
     score += _locationScores[plot.country.name] ?? 0.5 * 0.3;
-    
+
     // Price efficiency
-    final pricePerSqm = plot.price / plot.area;
+    final double pricePerSqm = plot.price / plot.area;
     if (pricePerSqm < 1000) {
       score += 0.2; // Good value
     } else if (pricePerSqm < 5000) {
       score += 0.1; // Reasonable value
     }
-    
+
     return min(score, 1);
   }
 
-  double _calculatePersonalizedScore(LandPlot plot, Map<String, dynamic> userProfile) {
-    var score = 0.0;
-    
+  double _calculatePersonalizedScore(
+    LandPlot plot,
+    Map<String, dynamic> userProfile,
+  ) {
+    double score = 0.0;
+
     // User-specific factors
-    final deviceType = userProfile['device_type'] as String? ?? 'unknown';
-    final location = userProfile['location'] as String? ?? 'unknown';
-    
+    final String deviceType =
+        userProfile['device_type'] as String? ?? 'unknown';
+    final String location = userProfile['location'] as String? ?? 'unknown';
+
     // Mobile users might prefer different features
     if (deviceType == 'mobile') {
       // Prefer listings with better mobile experience
@@ -379,21 +452,22 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
         score += 0.1;
       }
     }
-    
+
     // Location-based personalization
     if (location != 'unknown' && _isNearby(plot, location)) {
       score += 0.2;
     }
-    
+
     // Time-based personalization
-    final hour = DateTime.now().hour;
-    if (hour >= 18 && hour <= 22) { // Evening browsing
+    final int hour = DateTime.now().hour;
+    if (hour >= 18 && hour <= 22) {
+      // Evening browsing
       // Prefer premium listings in the evening
       if (plot.price > 5000000) {
         score += 0.1;
       }
     }
-    
+
     return min(score, 1);
   }
 
@@ -402,52 +476,73 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
     List<LandPlot> userHistory,
     List<LandPlot> userFavorites,
     Map<String, dynamic> userProfile,
+    Map<String, dynamic> preferences,
   ) {
-    final collaborativeScore = _calculateCollaborativeScore(plot, userHistory, userFavorites);
-    final contentBasedScore = _calculateContentBasedScore(plot, {});
-    final trendingScore = _calculateTrendingScore(plot);
-    final personalizedScore = _calculatePersonalizedScore(plot, userProfile);
-    
+    final double collaborativeScore = _calculateCollaborativeScore(
+      plot,
+      userHistory,
+      userFavorites,
+    );
+    final double contentBasedScore = _calculateContentBasedScore(
+      plot,
+      preferences,
+    );
+    final double trendingScore = _calculateTrendingScore(plot);
+    final double personalizedScore = _calculatePersonalizedScore(
+      plot,
+      userProfile,
+    );
+
     return (collaborativeScore * _collaborativeWeight) +
-           (contentBasedScore * _contentBasedWeight) +
-           (trendingScore * _trendingWeight) +
-           (personalizedScore * _personalizedWeight);
+        (contentBasedScore * _contentBasedWeight) +
+        (trendingScore * _trendingWeight) +
+        (personalizedScore * _personalizedWeight);
   }
 
   double _plotSimilarity(LandPlot plot1, LandPlot plot2) {
-    var similarity = 0.0;
-    
+    double similarity = 0.0;
+
     // Country similarity
     if (plot1.country == plot2.country) {
       similarity += 0.3;
     }
-    
+
     // Price similarity
-    final priceRatio = min(plot1.price, plot2.price) / max(plot1.price, plot2.price);
+    final double priceRatio =
+        min(plot1.price, plot2.price) / max(plot1.price, plot2.price);
     similarity += priceRatio * 0.3;
-    
+
     // Area similarity
-    final areaRatio = min(plot1.area, plot2.area) / max(plot1.area, plot2.area);
+    final double areaRatio =
+        min(plot1.area, plot2.area) / max(plot1.area, plot2.area);
     similarity += areaRatio * 0.2;
-    
+
     // Featured status
     if (plot1.isFeatured == plot2.isFeatured) {
       similarity += 0.2;
     }
-    
+
     return similarity;
   }
 
   double _getPriceScore(double price, String priceRange) {
     switch (priceRange) {
       case 'budget':
-        return price < 1000000 ? 1.0 : max(0, 1.0 - (price - 1000000) / 4000000);
+        return price < 1000000
+            ? 1.0
+            : max(0, 1.0 - (price - 1000000) / 4000000);
       case 'mid_range':
-        return price >= 1000000 && price < 5000000 ? 1.0 : 
-               price < 1000000 ? 0.7 : max(0, 1.0 - (price - 5000000) / 5000000);
+        return price >= 1000000 && price < 5000000
+            ? 1.0
+            : price < 1000000
+            ? 0.7
+            : max(0, 1.0 - (price - 5000000) / 5000000);
       case 'premium':
-        return price >= 5000000 && price < 10000000 ? 1.0 :
-               price < 5000000 ? 0.6 : max(0, 1.0 - (price - 10000000) / 10000000);
+        return price >= 5000000 && price < 10000000
+            ? 1.0
+            : price < 5000000
+            ? 0.6
+            : max(0, 1.0 - (price - 10000000) / 10000000);
       case 'luxury':
         return price >= 10000000 ? 1.0 : price / 10000000;
       default:
@@ -456,13 +551,15 @@ class AIRecommendationServiceImpl implements AIRecommendationService {
   }
 
   double _calculateTextSimilarity(String text1, String text2) {
-    final words1 = text1.toLowerCase().split(' ');
-    final words2 = text2.toLowerCase().split(' ');
-    
-    final intersection = words1.where(words2.contains).length;
-    final union = words1.toSet()..addAll(words2);
-    
-    return intersection / union.length;
+    final List<String> words1 = text1.toLowerCase().split(' ');
+    final List<String> words2 = text2.toLowerCase().split(' ');
+
+    final Set<String> set1 = words1.where((String w) => w.length > 2).toSet();
+    final Set<String> set2 = words2.where((String w) => w.length > 2).toSet();
+    if (set1.isEmpty && set2.isEmpty) return 1.0;
+    final int intersection = set1.intersection(set2).length;
+    final int union = set1.union(set2).length;
+    return intersection / union;
   }
 
   bool _isNearby(LandPlot plot, String userLocation) {

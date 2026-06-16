@@ -2,12 +2,11 @@ import 'package:equatable/equatable.dart';
 import 'package:gulflands/models/land_plot.dart';
 
 class ScoredLandPlot extends Equatable {
-
   const ScoredLandPlot({
     required this.plot,
     required this.score,
     required this.searchRelevance,
-    this.matchReasons = const [],
+    this.matchReasons = const <String>[],
   });
   final LandPlot plot;
   final double score;
@@ -29,7 +28,7 @@ class ScoredLandPlot extends Equatable {
   }
 
   @override
-  List<Object?> get props => [plot.id, score, searchRelevance];
+  List<Object?> get props => <Object?>[plot.id, score, searchRelevance];
 
   @override
   String toString() {

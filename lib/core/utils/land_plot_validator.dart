@@ -7,8 +7,8 @@ class LandPlotValidator {
 
   static Future<void> initialize() async {
     if (_schema != null) return;
-    
-    const schemaString = r'''
+
+    const String schemaString = r'''
     {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
@@ -29,18 +29,20 @@ class LandPlotValidator {
     }
     ''';
 
-    _schema = JsonSchema.create(jsonDecode(schemaString) as Map<String, dynamic>);
+    _schema = JsonSchema.create(
+      jsonDecode(schemaString) as Map<String, dynamic>,
+    );
   }
 
   static bool validate(Map<String, dynamic> data) {
     if (_schema == null) throw StateError('Schema not initialized');
-    final result = _schema!.validate(data);
+    final ValidationResults result = _schema!.validate(data);
     return result.isValid;
   }
 
   static List<String> getErrors(Map<String, dynamic> data) {
     if (_schema == null) throw StateError('Schema not initialized');
-    final result = _schema!.validate(data);
-    return result.errors.map((e) => e.message).toList();
+    final ValidationResults result = _schema!.validate(data);
+    return result.errors.map((ValidationError e) => e.message).toList();
   }
 }

@@ -4,7 +4,6 @@ import 'package:gulflands/core/storage/cache_repository.dart';
 
 /// Sync operation result
 class SyncResult {
-
   const SyncResult({
     required this.success,
     this.error,
@@ -21,15 +20,16 @@ class SyncResult {
 enum SyncStrategy {
   /// Always try network first, fallback to cache
   networkFirst,
+
   /// Always use cache first, sync in background
   cacheFirst,
+
   /// Only sync when explicitly requested
   manual,
 }
 
 /// Configuration for sync operations
 class SyncConfig {
-
   const SyncConfig({
     this.syncInterval = const Duration(minutes: 15),
     this.staleWhileRevalidateWindow = const Duration(hours: 1),
@@ -46,17 +46,14 @@ class SyncConfig {
 
 /// Sync manager for offline-first data synchronization
 class SyncManager {
-
-  SyncManager(
-    this._cache,
-    this._connectivity, {
-    SyncConfig? config,
-  }) : _config = config ?? const SyncConfig();
+  SyncManager(this._cache, this._connectivity, {SyncConfig? config})
+    : _config = config ?? const SyncConfig();
   final CacheRepository _cache;
   final Connectivity _connectivity;
   final SyncConfig _config;
 
-  final StreamController<SyncResult> _syncController = StreamController<SyncResult>.broadcast();
+  final StreamController<SyncResult> _syncController =
+      StreamController<SyncResult>.broadcast();
   Timer? _syncTimer;
   bool _isOnline = true;
 
@@ -69,7 +66,8 @@ class SyncManager {
     _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
 
     // Check initial connectivity
-    final results = await _connectivity.checkConnectivity();
+    final List<ConnectivityResult> results = await _connectivity
+        .checkConnectivity();
     _isOnline = !results.contains(ConnectivityResult.none);
 
     // Start periodic sync if online
@@ -91,24 +89,21 @@ class SyncManager {
     required Future<void> Function(T data) onSyncSuccess,
     Duration? ttl,
   }) async {
-    final startTime = DateTime.now();
+    final DateTime startTime = DateTime.now();
 
     if (!_isOnline) {
-      return const SyncResult(
-        success: false,
-        error: 'No internet connection',
-      );
+      return const SyncResult(success: false, error: 'No internet connection');
     }
 
-    var attempt = 0;
+    int attempt = 0;
     while (attempt < _config.maxRetries) {
       try {
-        final data = await fetchFromNetwork();
+        final T data = await fetchFromNetwork();
         await _cache.set(key, data, ttl: ttl);
         await onSyncSuccess(data);
 
-        final duration = DateTime.now().difference(startTime);
-        final result = SyncResult(
+        final Duration duration = DateTime.now().difference(startTime);
+        final SyncResult result = SyncResult(
           success: true,
           duration: duration,
           itemsSynced: 1,
@@ -124,8 +119,8 @@ class SyncManager {
       }
     }
 
-    final duration = DateTime.now().difference(startTime);
-    final result = SyncResult(
+    final Duration duration = DateTime.now().difference(startTime);
+    final SyncResult result = SyncResult(
       success: false,
       error: 'Failed after ${_config.maxRetries} attempts',
       duration: duration,
@@ -144,18 +139,20 @@ class SyncManager {
     bool forceRefresh = false,
   }) async {
     // Try cache first
-    final cached = await _cache.get<T>(key);
+    final T? cached = await _cache.get<T>(key);
     if (cached != null && !forceRefresh) {
       // Check if we should revalidate in background
-      final shouldRevalidate = await _shouldRevalidate(key);
+      final bool shouldRevalidate = await _shouldRevalidate(key);
       if (shouldRevalidate && _isOnline) {
         // Revalidate in background
-        unawaited(sync(
-          key: key,
-          fetchFromNetwork: fetchFromNetwork,
-          onSyncSuccess: onSyncSuccess,
-          ttl: ttl,
-        ));
+        unawaited(
+          sync(
+            key: key,
+            fetchFromNetwork: fetchFromNetwork,
+            onSyncSuccess: onSyncSuccess,
+            ttl: ttl,
+          ),
+        );
       }
       return cached;
     }
@@ -163,7 +160,7 @@ class SyncManager {
     // Cache miss or force refresh - try network
     if (_isOnline) {
       try {
-        final data = await fetchFromNetwork();
+        final T data = await fetchFromNetwork();
         await _cache.set(key, data, ttl: ttl);
         await onSyncSuccess(data);
         return data;
@@ -204,15 +201,13 @@ class SyncManager {
 
   /// Handle connectivity changes
   void _onConnectivityChanged(List<ConnectivityResult> results) {
-    final wasOnline = _isOnline;
+    final bool wasOnline = _isOnline;
     _isOnline = !results.contains(ConnectivityResult.none);
 
     if (!wasOnline && _isOnline) {
       // Came back online - start sync
       _startPeriodicSync();
-      _syncController.add(const SyncResult(
-        success: true,
-      ));
+      _syncController.add(const SyncResult(success: true));
     } else if (wasOnline && !_isOnline) {
       // Went offline - stop sync
       _syncTimer?.cancel();
@@ -238,7 +233,6 @@ class SyncManager {
 
       // Here you could add logic to sync specific keys that need background updates
       // For example, sync user preferences, app config, etc.
-
     } catch (e) {
       // Background sync errors shouldn't crash the app
     }

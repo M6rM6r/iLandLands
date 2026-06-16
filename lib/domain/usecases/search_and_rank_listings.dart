@@ -4,7 +4,6 @@ import 'package:gulflands/models/scored_land_plot.dart';
 import 'package:gulflands/services/land_repository.dart';
 
 class SearchAndRankListings {
-
   SearchAndRankListings(this.repository, this.rankingService);
   final LandRepository repository;
   final RankingService rankingService;
@@ -14,11 +13,11 @@ class SearchAndRankListings {
     Country? country,
     List<String>? favoriteIds,
   }) async {
-    final listings = await repository.getLandListings();
+    final List<LandPlot> listings = await repository.getLandListings();
     return rankingService.rankListings(
       listings,
       query,
-      favoriteIds: favoriteIds ?? [],
+      favoriteIds: favoriteIds ?? <String>[],
     );
   }
 }
