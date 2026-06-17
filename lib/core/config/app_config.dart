@@ -15,6 +15,10 @@ class AppConfig {
   static const String analyticsApiBaseUrl =
       'https://api.gulflands.com/analytics/v1';
   static const String mainApiBaseUrl = 'https://api.gulflands.com/v1';
+  static const String apiBaseUrl = 'https://api.gulflands.com/v1';
+  static const String recoServiceUrl = 'https://reco.gulflands.com';
+  static const String pythonApiUrl = 'https://python-api.gulflands.com';
+  static const Duration apiTimeout = Duration(seconds: 30);
 
   // UI Constants
   static const double defaultPadding = 16.0;
