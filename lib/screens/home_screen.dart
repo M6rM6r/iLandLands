@@ -8,8 +8,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gulflands/bloc/land/land_bloc.dart';
 import 'package:gulflands/core/design_system.dart';
 import 'package:gulflands/models/land_plot.dart';
+import 'package:gulflands/models/sort_option.dart';
 import 'package:gulflands/presentation/screens/detail/land_detail_screen.dart';
 import 'package:gulflands/presentation/screens/search/search_screen.dart';
+import 'package:gulflands/presentation/widgets/pressable.dart';
 import 'package:shimmer/shimmer.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +23,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Country? _selectedCountry;
+  SortOption? _currentSort;
+  bool _isGrid = false;
 
   static const List<_CountryChip> _countryChips = [
     _CountryChip(label: 'All', country: null, flag: '🌍'),
@@ -42,6 +46,24 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedCountry = c);
     HapticFeedback.selectionClick();
     context.read<LandBloc>().add(FilterLandListings(c));
+  }
+
+  void _showSortSheet() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) {
+        return _SortBottomSheet(
+          current: _currentSort,
+          onSelect: (SortOption? opt) {
+            setState(() => _currentSort = opt);
+            Navigator.pop(ctx);
+            context.read<LandBloc>().add(SortLandListings(opt));
+          },
+        );
+      },
+    );
   }
 
   Future<void> _onRefresh() async {
@@ -100,12 +122,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // ── Section title ────────────────────────────────────────────
+              // ── Section title + controls ──────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'All Listings',
@@ -115,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.textPrimary,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       BlocBuilder<LandBloc, LandState>(
                         builder: (_, s) {
                           final count = s is LandStateLoaded
@@ -127,6 +149,23 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: AppColors.textMuted,
                             ),
                           );
+                        },
+                      ),
+                      const Spacer(),
+                      _ControlBtn(
+                        icon: Icons.sort_rounded,
+                        active: _currentSort != null,
+                        onTap: _showSortSheet,
+                      ),
+                      const SizedBox(width: 4),
+                      _ControlBtn(
+                        icon: _isGrid
+                            ? Icons.view_list_rounded
+                            : Icons.grid_view_rounded,
+                        active: false,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _isGrid = !_isGrid);
                         },
                       ),
                     ],
@@ -143,6 +182,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (state is LandStateLoaded) {
                     if (state.listings.isEmpty) {
                       return const SliverToBoxAdapter(child: _EmptyState());
+                    }
+                    if (_isGrid) {
+                      return SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 0.72,
+                              ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => _GridCard(
+                              plot: state.listings[index],
+                              isFavorite: state.favoriteIds
+                                  .contains(state.listings[index].id),
+                              onFavorite: () => context
+                                  .read<LandBloc>()
+                                  .add(
+                                    ToggleFavorite(state.listings[index].id),
+                                  ),
+                            ),
+                            childCount: state.listings.length,
+                          ),
+                        ),
+                      );
                     }
                     return SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -399,7 +465,7 @@ class _FeaturedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.push(
@@ -494,7 +560,7 @@ class _FeaturedCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'AED ${plot.formattedPrice}',
+                      plot.formattedPrice,
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -652,7 +718,7 @@ class _ListingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.push(
@@ -763,7 +829,7 @@ class _ListingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'AED ${plot.formattedPrice}',
+                        plot.formattedPrice,
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -968,4 +1034,334 @@ class _CountryChip {
   final String label;
   final Country? country;
   final String flag;
+}
+
+// ─── Control button (sort / grid toggle) ─────────────────────────────────────
+class _ControlBtn extends StatelessWidget {
+  const _ControlBtn({
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.gold.withValues(alpha: 0.15)
+              : AppColors.cardBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active
+                ? AppColors.gold.withValues(alpha: 0.5)
+                : AppColors.dividerColor,
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: active ? AppColors.gold : AppColors.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Grid card ────────────────────────────────────────────────────────────────
+class _GridCard extends StatelessWidget {
+  const _GridCard({
+    required this.plot,
+    required this.isFavorite,
+    required this.onFavorite,
+  });
+  final LandPlot plot;
+  final bool isFavorite;
+  final VoidCallback onFavorite;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => LandDetailScreen(plot: plot),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.dividerColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    plot.imageUrls.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: plot.imageUrls.first,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) =>
+                                _PlaceholderImage(),
+                          )
+                        : _PlaceholderImage(),
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, AppColors.navyDeep],
+                          stops: [0.5, 1.0],
+                        ),
+                      ),
+                    ),
+                    // Price chip bottom-left
+                    Positioned(
+                      bottom: 6,
+                      left: 8,
+                      child: Text(
+                        plot.formattedPrice,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ),
+                    // Bookmark icon top-right
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          onFavorite();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFavorite
+                                ? Icons.bookmark
+                                : Icons.bookmark_outline,
+                            size: 14,
+                            color: isFavorite
+                                ? AppColors.gold
+                                : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (plot.isFeatured)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.gold,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            '★',
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // Info
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plot.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.crop,
+                          size: 10,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          plot.formattedArea,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Sort bottom sheet ────────────────────────────────────────────────────────
+class _SortBottomSheet extends StatelessWidget {
+  const _SortBottomSheet({required this.current, required this.onSelect});
+  final SortOption? current;
+  final void Function(SortOption?) onSelect;
+
+  static const List<(SortOption?, String, IconData)> _options = [
+    (null, 'Default', Icons.auto_awesome_outlined),
+    (SortOption.newest, 'Newest First', Icons.schedule_outlined),
+    (SortOption.priceAsc, 'Price: Low → High', Icons.arrow_upward),
+    (SortOption.priceDesc, 'Price: High → Low', Icons.arrow_downward),
+    (SortOption.areaAsc, 'Area: Small → Large', Icons.straighten),
+    (SortOption.areaDesc, 'Area: Large → Small', Icons.straighten),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.dividerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Text(
+                  'Sort By',
+                  style: GoogleFonts.poppins(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._options.map((opt) {
+            final isSelected = current == opt.$1;
+            return InkWell(
+              onTap: () => onSelect(opt.$1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.gold.withValues(alpha: 0.15)
+                            : AppColors.cardBgLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        opt.$3,
+                        size: 18,
+                        color:
+                            isSelected ? AppColors.gold : AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        opt.$2,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: isSelected
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check,
+                        color: AppColors.gold,
+                        size: 18,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
+        ],
+      ),
+    );
+  }
 }

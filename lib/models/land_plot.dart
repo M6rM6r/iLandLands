@@ -39,7 +39,35 @@ class LandPlot {
   @override
   int get hashCode => id.hashCode ^ price.hashCode;
 
-  String get formattedPrice => '${(price / 1000000).toStringAsFixed(1)}M';
+  String get currencyCode {
+    switch (country) {
+      case Country.uae:
+        return 'AED';
+      case Country.saudiArabia:
+        return 'SAR';
+      case Country.qatar:
+        return 'QAR';
+      case Country.kuwait:
+        return 'KWD';
+      case Country.bahrain:
+        return 'BHD';
+      case Country.oman:
+        return 'OMR';
+    }
+  }
+
+  String get formattedPrice {
+    if (price >= 1000000) {
+      return '$currencyCode ${(price / 1000000).toStringAsFixed(1)}M';
+    }
+    if (price >= 1000) {
+      return '$currencyCode ${(price / 1000).toStringAsFixed(0)}K';
+    }
+    return '$currencyCode ${price.toStringAsFixed(0)}';
+  }
+
+  String get formattedPricePerSqm =>
+      '$currencyCode ${pricePerSquareMeter.toStringAsFixed(0)}/sqm';
 
   String get countryDisplay {
     switch (country) {

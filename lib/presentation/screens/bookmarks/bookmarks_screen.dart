@@ -2,14 +2,54 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gulflands/bloc/land/land_bloc.dart';
 import 'package:gulflands/core/design_system.dart';
 import 'package:gulflands/models/land_plot.dart';
 import 'package:gulflands/presentation/screens/detail/land_detail_screen.dart';
+import 'package:gulflands/presentation/widgets/pressable.dart';
 
-class BookmarksScreen extends StatelessWidget {
+enum _BookmarkSort { dateAdded, priceAsc, priceDesc, areaAsc }
+
+class BookmarksScreen extends StatefulWidget {
   const BookmarksScreen({super.key});
+
+  @override
+  State<BookmarksScreen> createState() => _BookmarksScreenState();
+}
+
+class _BookmarksScreenState extends State<BookmarksScreen> {
+  _BookmarkSort _sort = _BookmarkSort.dateAdded;
+
+  List<LandPlot> _sorted(List<LandPlot> plots) {
+    final list = List<LandPlot>.from(plots);
+    switch (_sort) {
+      case _BookmarkSort.dateAdded:
+        return list;
+      case _BookmarkSort.priceAsc:
+        return list..sort((a, b) => a.price.compareTo(b.price));
+      case _BookmarkSort.priceDesc:
+        return list..sort((a, b) => b.price.compareTo(a.price));
+      case _BookmarkSort.areaAsc:
+        return list..sort((a, b) => a.area.compareTo(b.area));
+    }
+  }
+
+  void _showSortSheet() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SortSheet(
+        current: _sort,
+        onSelect: (s) {
+          setState(() => _sort = s);
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,22 +59,23 @@ class BookmarksScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Header ────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(20, 20, 16, 16),
+              child: Row(
                 children: [
-                  Row(
+                  Container(
+                    width: 3,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: AppColors.gold,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 3,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: AppColors.gold,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       Text(
                         'Saved Listings',
                         style: GoogleFonts.poppins(
@@ -44,20 +85,54 @@ class BookmarksScreen extends StatelessWidget {
                           letterSpacing: -0.5,
                         ),
                       ),
+                      Text(
+                        'Plots you have bookmarked',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Plots you have bookmarked',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppColors.textMuted,
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _showSortSheet,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.dividerColor),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.sort_rounded,
+                            size: 16,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Sort',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             const Divider(height: 1, color: AppColors.dividerColor),
+
+            // ── List ──────────────────────────────────────────────────────
             Expanded(
               child: BlocBuilder<LandBloc, LandState>(
                 builder: (context, state) {
@@ -72,29 +147,108 @@ class BookmarksScreen extends StatelessWidget {
                   }
 
                   if (state is LandStateLoaded) {
-                    final saved = state.listings
-                        .where(
-                          (p) => state.favoriteIds.contains(p.id),
-                        )
+                    final raw = state.listings
+                        .where((p) => state.favoriteIds.contains(p.id))
                         .toList();
+                    final saved = _sorted(raw);
 
                     if (saved.isEmpty) {
-                      return _EmptyBookmarks();
+                      return _EmptyBookmarks(
+                        onBrowse: () {
+                          // Pop back to Home tab via the Navigator
+                          Navigator.of(context).popUntil(
+                            (route) => route.isFirst,
+                          );
+                        },
+                      );
                     }
 
-                    return ListView.builder(
+                    return AnimationLimiter(
+                      child: ListView.builder(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                       itemCount: saved.length,
-                      itemBuilder: (_, i) => _BookmarkCard(
-                        plot: saved[i],
-                        onRemove: () {
-                          HapticFeedback.lightImpact();
-                          context
-                              .read<LandBloc>()
-                              .add(ToggleFavorite(saved[i].id));
-                        },
-                      ),
+                      itemBuilder: (_, i) {
+                        final plot = saved[i];
+                        return AnimationConfiguration.staggeredList(
+                          position: i,
+                          duration: const Duration(milliseconds: 420),
+                          child: SlideAnimation(
+                            verticalOffset: 36,
+                            child: FadeInAnimation(
+                              child: Dismissible(
+                          key: ValueKey<String>(plot.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            margin: const EdgeInsets.only(bottom: 14),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.delete_outline,
+                                  color: AppColors.error,
+                                  size: 26,
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Remove',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          confirmDismiss: (_) async => true,
+                          onDismissed: (_) {
+                            HapticFeedback.mediumImpact();
+                            context
+                                .read<LandBloc>()
+                                .add(ToggleFavorite(plot.id));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Removed from saved'),
+                                backgroundColor: AppColors.cardBg,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                action: SnackBarAction(
+                                  label: 'Undo',
+                                  textColor: AppColors.gold,
+                                  onPressed: () => context
+                                      .read<LandBloc>()
+                                      .add(ToggleFavorite(plot.id)),
+                                ),
+                              ),
+                            );
+                          },
+                          child: _BookmarkCard(
+                            plot: plot,
+                            onRemove: () {
+                              HapticFeedback.lightImpact();
+                              context
+                                  .read<LandBloc>()
+                                  .add(ToggleFavorite(plot.id));
+                            },
+                          ),
+                        ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     );
                   }
 
@@ -116,7 +270,7 @@ class _BookmarkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.push(
@@ -274,7 +428,7 @@ class _BookmarkCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'AED ${plot.formattedPrice}',
+                        plot.formattedPrice,
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -312,44 +466,216 @@ class _BookmarkCard extends StatelessWidget {
   }
 }
 
-class _EmptyBookmarks extends StatelessWidget {
+class _EmptyBookmarks extends StatefulWidget {
+  const _EmptyBookmarks({required this.onBrowse});
+  final VoidCallback onBrowse;
+
+  @override
+  State<_EmptyBookmarks> createState() => _EmptyBookmarksState();
+}
+
+class _EmptyBookmarksState extends State<_EmptyBookmarks>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _scale = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.5));
+    _slide = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.cardBg,
-              border: Border.all(color: AppColors.dividerColor),
-            ),
-            child: const Icon(
-              Icons.bookmark_outline,
-              size: 48,
-              color: AppColors.textMuted,
+          ScaleTransition(
+            scale: _scale,
+            child: FadeTransition(
+              opacity: _fade,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.cardBg,
+                  border: Border.all(color: AppColors.dividerColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.gold.withValues(alpha: 0.06),
+                      blurRadius: 24,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.bookmark_outline,
+                  size: 48,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            'No saved listings yet',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+          const SizedBox(height: 24),
+          SlideTransition(
+            position: _slide,
+            child: FadeTransition(
+              opacity: _fade,
+              child: Column(
+                children: [
+                  Text(
+                    'No saved listings yet',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Bookmark plots you love to find them here',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    height: 46,
+                    child: FilledButton.icon(
+                      onPressed: widget.onBrowse,
+                      icon: const Icon(Icons.search, size: 18),
+                      label: Text(
+                        'Browse Listings',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Sort sheet ───────────────────────────────────────────────────────────────
+class _SortSheet extends StatelessWidget {
+  const _SortSheet({required this.current, required this.onSelect});
+  final _BookmarkSort current;
+  final void Function(_BookmarkSort) onSelect;
+
+  static const List<(_BookmarkSort, String, IconData)> _opts = [
+    (_BookmarkSort.dateAdded, 'Date Saved', Icons.schedule_outlined),
+    (_BookmarkSort.priceAsc, 'Price: Low → High', Icons.arrow_upward),
+    (_BookmarkSort.priceDesc, 'Price: High → Low', Icons.arrow_downward),
+    (_BookmarkSort.areaAsc, 'Area: Small → Large', Icons.straighten),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.dividerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Sort By',
+              style: GoogleFonts.poppins(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Bookmark plots you love to find them here',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: AppColors.textMuted,
-            ),
-          ),
+          ..._opts.map((opt) {
+            final sel = current == opt.$1;
+            return InkWell(
+              onTap: () => onSelect(opt.$1),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: sel
+                            ? AppColors.gold.withValues(alpha: 0.15)
+                            : AppColors.cardBgLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        opt.$3,
+                        size: 18,
+                        color: sel ? AppColors.gold : AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        opt.$2,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight:
+                              sel ? FontWeight.w600 : FontWeight.w400,
+                          color: sel
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    if (sel)
+                      const Icon(Icons.check, color: AppColors.gold, size: 18),
+                  ],
+                ),
+              ),
+            );
+          }),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
         ],
       ),
     );

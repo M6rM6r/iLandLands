@@ -15,8 +15,13 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen>
+    with SingleTickerProviderStateMixin {
   LandPlot? _selected;
+  Country? _filterCountry;
+  late AnimationController _previewCtrl;
+  late Animation<Offset> _previewSlide;
+  late Animation<double> _previewFade;
 
   static const Map<Country, Map<String, double>> _countryCoords = {
     Country.uae: {'lat': 24.4539, 'lng': 54.3773},
@@ -35,6 +40,37 @@ class _MapScreenState extends State<MapScreen> {
     Country.bahrain: '🇧🇭',
     Country.oman: '🇴🇲',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _previewCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _previewSlide = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _previewCtrl, curve: Curves.easeOut));
+    _previewFade = CurvedAnimation(parent: _previewCtrl, curve: Curves.easeIn);
+  }
+
+  @override
+  void dispose() {
+    _previewCtrl.dispose();
+    super.dispose();
+  }
+
+  void _selectPlot(LandPlot p) {
+    setState(() => _selected = p);
+    _previewCtrl.forward(from: 0);
+  }
+
+  void _dismissPreview() {
+    _previewCtrl.reverse().then((_) {
+      if (mounted) setState(() => _selected = null);
+    });
+  }
 
   void _openInMaps(LandPlot plot) {
     final coords = _countryCoords[plot.country];
@@ -84,37 +120,34 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
 
-              // ── Info banner ───────────────────────────────────────────────
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBg,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
+              // ── Country filter chips ─────────────────────────────────────
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: AppColors.gold,
-                      size: 18,
+                    _FilterChip(
+                      label: '🌍 All',
+                      selected: _filterCountry == null,
+                      onTap: () => setState(() => _filterCountry = null),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Tap a listing to preview, then open it in Maps.',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
+                    ...Country.values.map(
+                      (c) => _FilterChip(
+                        label: '${_flags[c] ?? ''} ${_countryName(c)}',
+                        selected: _filterCountry == c,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _filterCountry = c);
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: AppColors.dividerColor),
 
               // ── Listing pins list ─────────────────────────────────────────
               Expanded(
@@ -131,21 +164,37 @@ class _MapScreenState extends State<MapScreen> {
                     }
 
                     if (state is LandStateLoaded) {
-                      final plots = state.listings;
-                      if (plots.isEmpty) {
+                      final allPlots = _filterCountry == null
+                          ? state.listings
+                          : state.listings
+                              .where((p) => p.country == _filterCountry)
+                              .toList();
+
+                      if (allPlots.isEmpty) {
                         return Center(
-                          child: Text(
-                            'No listings to show on map',
-                            style: GoogleFonts.inter(
-                              color: AppColors.textMuted,
-                            ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.map_outlined,
+                                color: AppColors.textMuted,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No listings in this region',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       }
 
                       // Group by country
                       final Map<Country, List<LandPlot>> grouped = {};
-                      for (final p in plots) {
+                      for (final p in allPlots) {
                         grouped.putIfAbsent(p.country, () => []).add(p);
                       }
 
@@ -153,7 +202,7 @@ class _MapScreenState extends State<MapScreen> {
                         children: [
                           ListView.builder(
                             physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                             itemCount: grouped.length,
                             itemBuilder: (_, i) {
                               final country = grouped.keys.elementAt(i);
@@ -164,33 +213,39 @@ class _MapScreenState extends State<MapScreen> {
                                 flag: _flags[country] ?? '🌍',
                                 onPlotTap: (p) {
                                   HapticFeedback.lightImpact();
-                                  setState(() => _selected = p);
+                                  _selectPlot(p);
                                 },
                               );
                             },
                           ),
 
-                          // Selected plot preview
+                          // Animated selected plot preview
                           if (_selected != null)
                             Positioned(
                               bottom: 0,
                               left: 0,
                               right: 0,
-                              child: _SelectedPreview(
-                                plot: _selected!,
-                                onClose: () =>
-                                    setState(() => _selected = null),
-                                onOpenMap: () => _openInMaps(_selected!),
-                                onDetail: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => LandDetailScreen(
-                                        plot: _selected!,
-                                      ),
-                                    ),
-                                  );
-                                },
+                              child: SlideTransition(
+                                position: _previewSlide,
+                                child: FadeTransition(
+                                  opacity: _previewFade,
+                                  child: _SelectedPreview(
+                                    plot: _selected!,
+                                    onClose: _dismissPreview,
+                                    onOpenMap: () =>
+                                        _openInMaps(_selected!),
+                                    onDetail: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => LandDetailScreen(
+                                            plot: _selected!,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
                         ],
@@ -202,6 +257,59 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _countryName(Country c) {
+  switch (c) {
+    case Country.uae: return 'UAE';
+    case Country.saudiArabia: return 'KSA';
+    case Country.qatar: return 'Qatar';
+    case Country.kuwait: return 'Kuwait';
+    case Country.bahrain: return 'Bahrain';
+    case Country.oman: return 'Oman';
+  }
+}
+
+// ─── Filter chip ──────────────────────────────────────────────────────────────
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.gold.withValues(alpha: 0.15)
+              : AppColors.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.gold : AppColors.dividerColor,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? AppColors.gold : AppColors.textSecondary,
           ),
         ),
       ),
@@ -316,7 +424,7 @@ class _CountrySection extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'AED ${p.formattedPrice}',
+                    p.formattedPrice,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -403,7 +511,7 @@ class _SelectedPreview extends StatelessWidget {
           Row(
             children: [
               Text(
-                'AED ${plot.formattedPrice}',
+                plot.formattedPrice,
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,

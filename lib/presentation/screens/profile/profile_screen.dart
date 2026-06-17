@@ -7,6 +7,7 @@ import 'package:gulflands/bloc/auth/auth_bloc.dart';
 import 'package:gulflands/bloc/auth/auth_event.dart';
 import 'package:gulflands/bloc/land/land_bloc.dart';
 import 'package:gulflands/core/design_system.dart';
+import 'package:gulflands/presentation/screens/auth/forgot_password_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -149,17 +150,33 @@ class ProfileScreen extends StatelessWidget {
                     _MenuItem(
                       icon: Icons.person_outline,
                       label: 'Edit Profile',
-                      onTap: () {},
+                      onTap: () => _showEditProfileDialog(context, name),
                     ),
                     _MenuItem(
                       icon: Icons.notifications_outlined,
                       label: 'Notifications',
-                      onTap: () {},
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Notification settings coming soon',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
                     ),
                     _MenuItem(
                       icon: Icons.lock_outline,
                       label: 'Change Password',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -174,7 +191,14 @@ class ProfileScreen extends StatelessWidget {
                           color: AppColors.textMuted,
                         ),
                       ),
-                      onTap: () {},
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Multi-language support coming soon'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
                     ),
                     _MenuItem(
                       icon: Icons.dark_mode_outlined,
@@ -186,7 +210,14 @@ class ProfileScreen extends StatelessWidget {
                           color: AppColors.textMuted,
                         ),
                       ),
-                      onTap: () {},
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Theme customisation coming soon'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -194,17 +225,32 @@ class ProfileScreen extends StatelessWidget {
                     _MenuItem(
                       icon: Icons.info_outline,
                       label: 'About Gulf Lands',
-                      onTap: () {},
+                      onTap: () => _showInfoSheet(
+                        context,
+                        title: 'About Gulf Lands',
+                        body:
+                            'Gulf Lands is a premium land marketplace connecting buyers with verified plots across the Gulf Cooperation Council (GCC) region.\n\nVersion 2.0.0\nBuilt with Flutter.',
+                      ),
                     ),
                     _MenuItem(
                       icon: Icons.shield_outlined,
                       label: 'Privacy Policy',
-                      onTap: () {},
+                      onTap: () => _showInfoSheet(
+                        context,
+                        title: 'Privacy Policy',
+                        body:
+                            'Gulf Lands collects minimal personal data to provide the best experience. We do not sell your data to third parties.\n\nFor questions, contact privacy@gulflands.com.',
+                      ),
                     ),
                     _MenuItem(
                       icon: Icons.description_outlined,
                       label: 'Terms of Service',
-                      onTap: () {},
+                      onTap: () => _showInfoSheet(
+                        context,
+                        title: 'Terms of Service',
+                        body:
+                            'By using Gulf Lands you agree to our terms. All listings are subject to availability and local regulations. Gulf Lands is not responsible for third-party transactions.',
+                      ),
                     ),
                     const SizedBox(height: 24),
 
@@ -250,6 +296,151 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(BuildContext context, String currentName) {
+    final ctrl = TextEditingController(text: currentName);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: GoogleFonts.inter(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            labelText: 'Display Name',
+            labelStyle: GoogleFonts.inter(color: AppColors.textMuted),
+            filled: true,
+            fillColor: AppColors.cardBgLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.dividerColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.dividerColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.gold, width: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              ctrl.dispose();
+              Navigator.pop(ctx);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newName = ctrl.text.trim();
+              if (newName.isNotEmpty) {
+                await FirebaseAuth.instance.currentUser
+                    ?.updateDisplayName(newName);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Profile updated'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+              ctrl.dispose();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.gold,
+              foregroundColor: AppColors.navy,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInfoSheet(
+    BuildContext context, {
+    required String title,
+    required String body,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.35,
+        maxChildSize: 0.85,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Divider(color: AppColors.dividerColor),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                  children: [
+                    Text(
+                      body,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        height: 1.7,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

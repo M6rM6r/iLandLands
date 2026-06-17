@@ -8,6 +8,7 @@ import 'package:gulflands/bloc/auth/auth_state.dart';
 import 'package:gulflands/bloc/land/land_bloc.dart';
 import 'package:gulflands/core/design_system.dart';
 import 'package:gulflands/core/services/ai_recommendation_service.dart';
+import 'package:gulflands/features/ai_assistant/bloc/ai_assistant_bloc.dart';
 import 'package:gulflands/core/services/telemetry_service.dart';
 import 'package:gulflands/core/storage/cache_manager.dart';
 import 'package:gulflands/presentation/screens/auth/login_screen.dart';
@@ -68,6 +69,9 @@ class MyApp extends StatelessWidget {
                   BlocProvider<LandBloc>(
                     create: (BuildContext context) =>
                         LandBloc(repository: context.read<LandRepository>()),
+                  ),
+                  BlocProvider<AIAssistantBloc>(
+                    create: (_) => AIAssistantBloc(),
                   ),
                 ],
                 child: MaterialApp(

@@ -6,6 +6,7 @@ import 'package:gulflands/bloc/auth/auth_bloc.dart';
 import 'package:gulflands/bloc/auth/auth_event.dart';
 import 'package:gulflands/bloc/auth/auth_state.dart';
 import 'package:gulflands/core/design_system.dart';
+import 'package:gulflands/presentation/screens/auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.onNavigateToRegister});
@@ -256,7 +257,36 @@ class _LoginScreenState extends State<LoginScreen>
                                             ? 'Password is required'
                                             : null,
                                   ),
-                                  const SizedBox(height: 28),
+                                  // ── Forgot password ─────────────────────
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.push<void>(
+                                          context,
+                                          MaterialPageRoute<void>(
+                                            builder: (_) =>
+                                                const ForgotPasswordScreen(),
+                                          ),
+                                        );
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: Text(
+                                        'Forgot password?',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: AppColors.gold,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
 
                                   // ── Sign-in button ──────────────────────
                                   SizedBox(

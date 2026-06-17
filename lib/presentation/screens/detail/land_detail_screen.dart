@@ -7,6 +7,7 @@ import 'package:gulflands/bloc/land/land_bloc.dart';
 import 'package:gulflands/core/design_system.dart';
 import 'package:gulflands/models/land_plot.dart';
 import 'package:gulflands/presentation/screens/detail/inquiry_bottom_sheet.dart';
+import 'package:maps_launcher/maps_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
 class LandDetailScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
     SharePlus.instance.share(
       ShareParams(
         text:
-            '${widget.plot.title}\n${widget.plot.location}\nAED ${widget.plot.formattedPrice}\n\nVia Gulf Lands app',
+            '${widget.plot.title}\n${widget.plot.location}\n${widget.plot.formattedPrice}\n\nVia Gulf Lands app',
       ),
     );
   }
@@ -103,14 +104,18 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
                                     onPageChanged: (i) =>
                                         setState(() => _imageIndex = i),
                                     itemBuilder: (_, i) =>
-                                        CachedNetworkImage(
-                                          imageUrl: plot.imageUrls[i],
-                                          fit: BoxFit.cover,
-                                          placeholder: (_, __) => Container(
-                                            color: AppColors.cardBgLight,
+                                        InteractiveViewer(
+                                          minScale: 1.0,
+                                          maxScale: 4.0,
+                                          child: CachedNetworkImage(
+                                            imageUrl: plot.imageUrls[i],
+                                            fit: BoxFit.cover,
+                                            placeholder: (_, __) => Container(
+                                              color: AppColors.cardBgLight,
+                                            ),
+                                            errorWidget: (_, __, ___) =>
+                                                _PlaceholderHero(),
                                           ),
-                                          errorWidget: (_, __, ___) =>
-                                              _PlaceholderHero(),
                                         ),
                                   )
                                 : _PlaceholderHero(),
@@ -267,7 +272,7 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
                             ),
                             const SizedBox(height: 8),
 
-                            // Location
+                            // Location + map button
                             Row(
                               children: [
                                 const Icon(
@@ -285,13 +290,55 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
                                     ),
                                   ),
                                 ),
+                                GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    MapsLauncher.launchQuery(
+                                      '${plot.location} ${plot.countryDisplay}',
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AppColors.gold.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: AppColors.gold
+                                            .withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.map_outlined,
+                                          size: 13,
+                                          color: AppColors.gold,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Map',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.gold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 20),
 
                             // Price
                             Text(
-                              'AED ${plot.formattedPrice}',
+                              plot.formattedPrice,
                               style: GoogleFonts.poppins(
                                 fontSize: 30,
                                 fontWeight: FontWeight.w800,
@@ -301,7 +348,7 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'AED ${plot.pricePerSquareMeter.toStringAsFixed(0)}/sqm',
+                              plot.formattedPricePerSqm,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 color: AppColors.textMuted,
@@ -412,6 +459,52 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
                             ),
                             const SizedBox(height: 12),
                             _HighlightsList(plot: plot),
+                            const SizedBox(height: 28),
+
+                            // ── Similar listings ─────────────────────────
+                            if (state is LandStateLoaded) ...[
+                              Builder(
+                                builder: (_) {
+                                  final similar = state.listings
+                                      .where((p) =>
+                                          p.id != plot.id &&
+                                          p.country == plot.country)
+                                      .take(6)
+                                      .toList();
+                                  if (similar.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Similar Listings',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        height: 196,
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          physics:
+                                              const BouncingScrollPhysics(),
+                                          itemCount: similar.length,
+                                          itemBuilder: (_, i) =>
+                                              _SimilarCard(
+                                                plot: similar[i],
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -603,6 +696,95 @@ class _Divider extends StatelessWidget {
   }
 }
 
+class _SimilarCard extends StatelessWidget {
+  const _SimilarCard({required this.plot});
+  final LandPlot plot;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => LandDetailScreen(plot: plot),
+          ),
+        );
+      },
+      child: Container(
+        width: 160,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.dividerColor),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 110,
+                width: double.infinity,
+                child: plot.imageUrls.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: plot.imageUrls.first,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          color: AppColors.cardBgLight,
+                          child: const Icon(
+                            Icons.landscape,
+                            color: AppColors.textMuted,
+                            size: 32,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.cardBgLight,
+                        child: const Icon(
+                          Icons.landscape,
+                          color: AppColors.textMuted,
+                          size: 32,
+                        ),
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plot.title,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      plot.formattedPrice,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.gold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HighlightsList extends StatelessWidget {
   const _HighlightsList({required this.plot});
   final LandPlot plot;
@@ -611,7 +793,7 @@ class _HighlightsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       (Icons.straighten, 'Plot area: ${plot.formattedArea}'),
-      (Icons.attach_money, 'Price/sqm: AED ${plot.pricePerSquareMeter.toStringAsFixed(0)}'),
+      (Icons.attach_money, 'Price/sqm: ${plot.formattedPricePerSqm}'),
       (Icons.location_city, 'Location: ${plot.location}'),
       if (plot.isFeatured) (Icons.star, 'Premium featured listing'),
     ];

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,8 @@ import 'package:gulflands/core/design_system.dart';
 import 'package:gulflands/models/land_plot.dart';
 import 'package:gulflands/models/sort_option.dart';
 import 'package:gulflands/presentation/screens/detail/land_detail_screen.dart';
+import 'package:gulflands/presentation/widgets/pressable.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -22,6 +26,11 @@ class _SearchScreenState extends State<SearchScreen> {
   final FocusNode _focusNode = FocusNode();
   Country? _selectedCountry;
   SortOption? _selectedSort;
+  Timer? _debounce;
+  List<String> _recentSearches = [];
+
+  static const String _prefsKey = 'recent_searches';
+  static const int _maxRecent = 8;
 
   static const List<_SortOption> _sortOptions = [
     _SortOption('Newest', SortOption.newest),
@@ -44,6 +53,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _loadRecentSearches();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
       context.read<LandBloc>().add(const LoadLandListings());
@@ -52,17 +62,58 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  Future<void> _loadRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _recentSearches = prefs.getStringList(_prefsKey) ?? [];
+    });
+  }
+
+  Future<void> _saveSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_prefsKey) ?? [];
+    list.remove(query.trim());
+    list.insert(0, query.trim());
+    if (list.length > _maxRecent) list.removeLast();
+    await prefs.setStringList(_prefsKey, list);
+    setState(() => _recentSearches = list);
+  }
+
+  Future<void> _clearRecent() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
+    setState(() => _recentSearches = []);
+  }
+
   void _onSearch(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 420), () {
+      context.read<LandBloc>().add(
+        LoadLandListings(
+          country: _selectedCountry,
+          sortBy: _selectedSort,
+          searchQuery: query.trim(),
+        ),
+      );
+    });
+  }
+
+  void _submitSearch(String query) {
+    _debounce?.cancel();
+    final q = query.trim();
+    if (q.isNotEmpty) _saveSearch(q);
     context.read<LandBloc>().add(
       LoadLandListings(
         country: _selectedCountry,
         sortBy: _selectedSort,
-        searchQuery: query.trim(),
+        searchQuery: q,
       ),
     );
   }
@@ -144,7 +195,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 controller: _searchCtrl,
                                 focusNode: _focusNode,
                                 onChanged: _onSearch,
-                                onSubmitted: _onSearch,
+                                onSubmitted: _submitSearch,
                                 style: GoogleFonts.inter(
                                   color: AppColors.textPrimary,
                                   fontSize: 14,
@@ -296,13 +347,41 @@ class _SearchScreenState extends State<SearchScreen> {
               Expanded(
                 child: BlocBuilder<LandBloc, LandState>(
                   builder: (context, state) {
-                    if (state is LandStateLoading ||
-                        state is LandStateInitial) {
+                    if (state is LandStateLoading) {
                       return _SearchShimmer();
                     }
+                    if (state is LandStateInitial &&
+                        _searchCtrl.text.isEmpty &&
+                        _recentSearches.isNotEmpty) {
+                      return _RecentSearches(
+                        searches: _recentSearches,
+                        onSelect: (q) {
+                          _searchCtrl.text = q;
+                          _submitSearch(q);
+                        },
+                        onClear: _clearRecent,
+                      );
+                    }
                     if (state is LandStateLoaded) {
+                      if (_searchCtrl.text.isEmpty &&
+                          _recentSearches.isNotEmpty) {
+                        return _RecentSearches(
+                          searches: _recentSearches,
+                          onSelect: (q) {
+                            _searchCtrl.text = q;
+                            _submitSearch(q);
+                          },
+                          onClear: _clearRecent,
+                        );
+                      }
                       if (state.listings.isEmpty) {
-                        return _NoResults(query: _searchCtrl.text);
+                        return _NoResults(
+                          query: _searchCtrl.text,
+                          onClear: () {
+                            _searchCtrl.clear();
+                            _submitSearch('');
+                          },
+                        );
                       }
                       return _ResultsList(listings: state.listings);
                     }
@@ -314,6 +393,16 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: AppColors.textMuted,
                           ),
                         ),
+                      );
+                    }
+                    if (_recentSearches.isNotEmpty) {
+                      return _RecentSearches(
+                        searches: _recentSearches,
+                        onSelect: (q) {
+                          _searchCtrl.text = q;
+                          _submitSearch(q);
+                        },
+                        onClear: _clearRecent,
                       );
                     }
                     return const SizedBox.shrink();
@@ -338,7 +427,19 @@ class _ResultsList extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       itemCount: listings.length,
-      itemBuilder: (_, i) => _SearchResultCard(plot: listings[i]),
+      itemBuilder: (_, i) => TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: Duration(milliseconds: 260 + i * 50),
+        curve: Curves.easeOut,
+        builder: (_, v, child) => Opacity(
+          opacity: v,
+          child: Transform.translate(
+            offset: Offset(0, 18 * (1 - v)),
+            child: child,
+          ),
+        ),
+        child: _SearchResultCard(plot: listings[i]),
+      ),
     );
   }
 }
@@ -349,7 +450,7 @@ class _SearchResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.push(
@@ -435,7 +536,7 @@ class _SearchResultCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'AED ${plot.formattedPrice}',
+                        plot.formattedPrice,
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -490,8 +591,9 @@ class _SearchShimmer extends StatelessWidget {
 }
 
 class _NoResults extends StatelessWidget {
-  const _NoResults({required this.query});
+  const _NoResults({required this.query, required this.onClear});
   final String query;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -499,12 +601,21 @@ class _NoResults extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.search_off_outlined,
-            size: 60,
-            color: AppColors.textMuted,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.cardBg,
+              border: Border.all(color: AppColors.dividerColor),
+            ),
+            child: const Icon(
+              Icons.search_off_outlined,
+              size: 38,
+              color: AppColors.textMuted,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             query.isEmpty ? 'Start searching…' : 'No results for "$query"',
             style: GoogleFonts.poppins(
@@ -512,6 +623,7 @@ class _NoResults extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
@@ -521,8 +633,107 @@ class _NoResults extends StatelessWidget {
               color: AppColors.textMuted,
             ),
           ),
+          if (query.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: onClear,
+              icon: const Icon(Icons.close, size: 16),
+              label: const Text('Clear search'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.gold,
+                side: const BorderSide(color: AppColors.gold),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+// ─── Recent searches panel ────────────────────────────────────────────────────
+class _RecentSearches extends StatelessWidget {
+  const _RecentSearches({
+    required this.searches,
+    required this.onSelect,
+    required this.onClear,
+  });
+  final List<String> searches;
+  final void Function(String) onSelect;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Text(
+                'Recent Searches',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onClear,
+                child: Text(
+                  'Clear all',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: searches.length,
+            itemBuilder: (_, i) => InkWell(
+              onTap: () => onSelect(searches[i]),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.history,
+                      size: 18,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        searches[i],
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.north_west,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
