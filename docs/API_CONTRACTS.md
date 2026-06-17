@@ -537,6 +537,236 @@ VITE_APP_NAME="Gulf Lands"
 ['user', id]
 ```
 
+## Users
+
+### GET `/users`
+**Auth Required (admin/manager)** — List users with pagination and filters.
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `role` | string | Filter by role (`admin`, `manager`, `agent`, `viewer`) |
+| `status` | string | Filter by status (`active`, `inactive`, `suspended`) |
+| `page` | int | Page number (default: 1) |
+| `limit` | int | Items per page (default: 20, max: 100) |
+
+**Response 200:**
+```json
+{
+  "data": [
+    {
+      "id": "u0000000-0000-0000-0000-000000000001",
+      "email": "admin@gulflands.dev",
+      "first_name": "Admin",
+      "last_name": "User",
+      "phone": "+971501234567",
+      "role": "admin",
+      "country": "uae",
+      "status": "active",
+      "email_verified": false,
+      "created_at": "2024-06-17T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 5,
+    "pages": 1
+  }
+}
+```
+
+### GET `/users/me`
+**Auth Required** — Current authenticated user profile.
+
+**Response 200:** Returns full `User` object.
+
+### PATCH `/users/me`
+**Auth Required** — Update own profile.
+
+**Request:**
+```json
+{
+  "first_name": "Ahmed",
+  "last_name": "Al-Rashid",
+  "phone": "+966501234567",
+  "country": "saudiArabia"
+}
+```
+
+**Response 200:**
+```json
+{ "updated": true }
+```
+
+### GET `/users/{id}`
+**Auth Required (admin/manager)** — Get single user.
+
+**Response 200:** Returns `User` object.
+
+### PATCH `/users/{id}`
+**Auth Required (admin/manager)** — Update user. Managers cannot change roles or modify admins.
+
+**Request:**
+```json
+{
+  "first_name": "Updated",
+  "status": "active",
+  "role": "manager"
+}
+```
+
+**Response 200:**
+```json
+{ "id": "u-xxx", "updated": true }
+```
+
+### DELETE `/users/{id}`
+**Auth Required (admin)** — Soft-delete user (sets status to `inactive`). Self-deletion is blocked.
+
+**Response 200:**
+```json
+{ "id": "u-xxx", "deleted": true }
+```
+
+---
+
+## Dashboard
+
+### GET `/dashboard/metrics`
+**Auth Required (admin/manager/agent)** — Aggregated KPIs for the admin dashboard.
+
+**Response 200:**
+```json
+{
+  "metrics": {
+    "totalListings": 150,
+    "activeListings": 120,
+    "totalInquiries": 450,
+    "activeInquiries": 85,
+    "newInquiriesToday": 12,
+    "totalUsers": 32,
+    "wonDeals": 28,
+    "conversionRate": 6.22,
+    "avgDealValue": 7850000.00
+  },
+  "pipeline": {
+    "new": 15,
+    "contacted": 22,
+    "scheduled": 8,
+    "visited": 5,
+    "negotiating": 3,
+    "won": 28,
+    "lost": 12
+  },
+  "listingsByCountry": {
+    "saudiArabia": 45,
+    "uae": 38,
+    "qatar": 22,
+    "bahrain": 8,
+    "oman": 4,
+    "kuwait": 3
+  }
+}
+```
+
+### GET `/dashboard/inquiry-pipeline`
+**Auth Required (admin/manager/agent)** — Inquiry counts grouped by status.
+
+**Response 200:**
+```json
+{
+  "pipeline": {
+    "new": 15,
+    "contacted": 22,
+    "scheduled": 8,
+    "visited": 5,
+    "negotiating": 3,
+    "won": 28,
+    "lost": 12
+  }
+}
+```
+
+### GET `/dashboard/recent-activity`
+**Auth Required (admin/manager/agent)** — Recent analytics events.
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `limit` | int | Max events (default: 20, max: 50) |
+
+**Response 200:**
+```json
+{
+  "events": [
+    {
+      "event_name": "listing_viewed",
+      "user_id": "u-xxx",
+      "properties": { "listing_id": "1" },
+      "created_at": "2024-06-17T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Land Listings (Admin CRUD)
+
+### POST `/land-listings`
+**Auth Required (admin/manager/agent)** — Create a new listing.
+
+**Request:**
+```json
+{
+  "title": "New Plot in Riyadh",
+  "description": "Prime commercial land...",
+  "price": 8500000.00,
+  "area": 12000.00,
+  "country": "saudiArabia",
+  "location": "Riyadh, Al-Malqa District",
+  "image_urls": ["https://example.com/img1.jpg"],
+  "is_featured": false,
+  "status": "active"
+}
+```
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "id": "new-listing-uuid"
+}
+```
+
+### PUT `/land-listings/{id}`
+**Auth Required (admin/manager)** — Update a listing.
+
+**Request:** Same shape as POST; send only fields to update.
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "id": "listing-uuid"
+}
+```
+
+### DELETE `/land-listings/{id}`
+**Auth Required (admin/manager)** — Soft-delete a listing (sets status to `inactive`).
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "id": "listing-uuid",
+  "message": "Listing deactivated"
+}
+```
+
+---
+
 ### Route Guards
 - `/login` — Public
 - `/dashboard/*` — Requires `access_token` + role in [`admin`, `manager`, `agent`]

@@ -26,9 +26,13 @@ class AuthController {
     public function register(): void {
         $body = $this->parseJsonBody();
 
-        $email    = trim($body['email'] ?? '');
-        $password = $body['password'] ?? '';
-        $country  = $body['country'] ?? '';
+        $email     = trim($body['email'] ?? '');
+        $password  = $body['password'] ?? '';
+        $country   = $body['country'] ?? '';
+        $tenantId  = trim($body['tenant_id'] ?? 'a0000000-0000-0000-0000-000000000001');
+        $firstName = trim($body['first_name'] ?? '');
+        $lastName  = trim($body['last_name'] ?? '');
+        $phone     = trim($body['phone'] ?? '');
 
         // --- Input validation ---
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -42,20 +46,27 @@ class AuthController {
             $this->respond(422, ['error' => 'country must be one of: ' . implode(', ', $allowedCountries)]);
         }
 
-        // --- Check duplicate email ---
-        $stmt = $this->db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
-        $stmt->execute([$email]);
+        // --- Check duplicate email within tenant ---
+        $stmt = $this->db->prepare('SELECT id FROM users WHERE tenant_id = ? AND email = ? LIMIT 1');
+        $stmt->execute([$tenantId, $email]);
         if ($stmt->fetch()) {
-            $this->respond(409, ['error' => 'Email already registered']);
+            $this->respond(409, ['error' => 'Email already registered for this tenant']);
         }
 
         // --- Store ---
         $id           = $this->generateUuid();
         $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
         $stmt = $this->db->prepare(
-            'INSERT INTO users (id, email, password_hash, country, status, created_at) VALUES (?, ?, ?, ?, \'active\', NOW())'
+            'INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, phone, country, role, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'viewer\', \'active\', NOW())'
         );
-        $stmt->execute([$id, $email, $passwordHash, $country]);
+        $stmt->execute([
+            $id, $tenantId, $email, $passwordHash,
+            $firstName !== '' ? $firstName : null,
+            $lastName  !== '' ? $lastName  : null,
+            $phone     !== '' ? $phone     : null,
+            $country,
+        ]);
 
         // --- Async: push to HubSpot CRM (non-blocking, errors are logged not thrown) ---
         $this->hubspot->upsertContact([
@@ -64,7 +75,7 @@ class AuthController {
             'country' => $country,
         ]);
 
-        $this->respond(201, ['id' => $id, 'email' => $email, 'country' => $country]);
+        $this->respond(201, ['id' => $id, 'email' => $email, 'country' => $country, 'tenant_id' => $tenantId]);
     }
 
     // -------------------------------------------------------------------------
@@ -84,7 +95,7 @@ class AuthController {
         $startTime = microtime(true);
 
         $stmt = $this->db->prepare(
-            'SELECT id, email, password_hash, country, status, role FROM users WHERE email = ? LIMIT 1'
+            'SELECT id, tenant_id, email, password_hash, country, status, role FROM users WHERE email = ? LIMIT 1'
         );
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -107,8 +118,8 @@ class AuthController {
             $this->respond(403, ['error' => 'Account is not active']);
         }
 
-        $accessToken  = $this->issueJwt($user['id'], $user['email'], $user['role'], 3600);
-        $refreshToken = $this->issueJwt($user['id'], $user['email'], $user['role'], 86400 * 30, 'refresh');
+        $accessToken  = $this->issueJwt($user['id'], $user['tenant_id'], $user['email'], $user['role'], 3600);
+        $refreshToken = $this->issueJwt($user['id'], $user['tenant_id'], $user['email'], $user['role'], 86400 * 30, 'refresh');
 
         $this->respond(200, [
             'access_token'  => $accessToken,
@@ -116,10 +127,11 @@ class AuthController {
             'token_type'    => 'Bearer',
             'expires_in'    => 3600,
             'user'          => [
-                'id'      => $user['id'],
-                'email'   => $user['email'],
-                'country' => $user['country'],
-                'role'    => $user['role'],
+                'id'        => $user['id'],
+                'tenant_id' => $user['tenant_id'],
+                'email'     => $user['email'],
+                'country'   => $user['country'],
+                'role'      => $user['role'],
             ],
         ]);
     }
@@ -135,17 +147,17 @@ class AuthController {
             $this->respond(422, ['error' => 'refresh_token is required']);
         }
 
-        try {
-            $payload = JwtAuthMiddleware::validateToken();
-        } catch (\Throwable $e) {
+        // Validate the refresh token from the body (not the Authorization header)
+        $payload = $this->validateRefreshToken($refreshToken);
+        if ($payload === null) {
             $this->respond(401, ['error' => 'Invalid refresh token']);
         }
 
-        if (($payload->type ?? '') !== 'refresh') {
+        if (($payload['type'] ?? '') !== 'refresh') {
             $this->respond(401, ['error' => 'Token is not a refresh token']);
         }
 
-        $accessToken = $this->issueJwt($payload->sub, $payload->email, $payload->role, 3600);
+        $accessToken = $this->issueJwt($payload['sub'], $payload['tenant_id'] ?? '', $payload['email'], $payload['role'], 3600);
 
         $this->respond(200, [
             'access_token' => $accessToken,
@@ -159,6 +171,7 @@ class AuthController {
     // -------------------------------------------------------------------------
     private function issueJwt(
         string $userId,
+        string $tenantId,
         string $email,
         string $role,
         int    $ttlSeconds,
@@ -172,12 +185,13 @@ class AuthController {
         $now     = time();
         $header  = $this->base64UrlEncode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $payload = $this->base64UrlEncode(json_encode([
-            'sub'   => $userId,
-            'email' => $email,
-            'role'  => $role,
-            'type'  => $type,
-            'iat'   => $now,
-            'exp'   => $now + $ttlSeconds,
+            'sub'       => $userId,
+            'tenant_id' => $tenantId,
+            'email'     => $email,
+            'role'      => $role,
+            'type'      => $type,
+            'iat'       => $now,
+            'exp'       => $now + $ttlSeconds,
         ]));
         $sig = $this->base64UrlEncode(hash_hmac('sha256', "$header.$payload", $secret, true));
 
@@ -186,6 +200,47 @@ class AuthController {
 
     private function base64UrlEncode(string $data): string {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    /**
+     * Validate a JWT token string directly (used for refresh tokens from body).
+     */
+    private function validateRefreshToken(string $token): ?array {
+        $secret = getenv('JWT_SECRET');
+        if (!$secret || strlen($secret) < 32) {
+            return null;
+        }
+
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        [$headerB64, $payloadB64, $signatureB64] = $parts;
+
+        $expectedSig = $this->base64UrlEncode(hash_hmac('sha256', "$headerB64.$payloadB64", $secret, true));
+        if (!hash_equals($expectedSig, $signatureB64)) {
+            return null;
+        }
+
+        $payload = json_decode($this->base64UrlDecode($payloadB64), true);
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            return null;
+        }
+
+        if (isset($payload['iat']) && $payload['iat'] > time() + 60) {
+            return null;
+        }
+
+        return $payload;
+    }
+
+    private function base64UrlDecode(string $data): string {
+        return base64_decode(strtr($data, '-_', '+/'));
     }
 
     private function parseJsonBody(): array {

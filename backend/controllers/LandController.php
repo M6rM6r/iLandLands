@@ -357,6 +357,133 @@ class LandController {
         return ['success' => true, 'message' => 'Description cache cleared'];
     }
 
+    /**
+     * POST /api/v1/land-listings
+     * Auth: admin/manager/agent
+     */
+    public function createListing(): array
+    {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                return ['success' => false, 'error' => 'Invalid JSON body'];
+            }
+
+            $tenantId = $this->getTenantId();
+            $required = ['title', 'description', 'price', 'area', 'country', 'location'];
+            foreach ($required as $field) {
+                if (empty($input[$field]) && $input[$field] !== 0 && $input[$field] !== 0.0) {
+                    return ['success' => false, 'error' => "{$field} is required"];
+                }
+            }
+
+            $allowedCountries = ['saudiArabia', 'uae', 'qatar', 'bahrain', 'oman', 'kuwait'];
+            if (!in_array($input['country'], $allowedCountries, true)) {
+                return ['success' => false, 'error' => 'Invalid country'];
+            }
+
+            $data = [
+                'tenant_id'   => $tenantId,
+                'title'       => trim($input['title']),
+                'description' => trim($input['description']),
+                'price'       => (float) $input['price'],
+                'area'        => (float) $input['area'],
+                'country'     => $input['country'],
+                'location'    => trim($input['location']),
+                'image_urls'  => $input['image_urls'] ?? [],
+                'is_featured' => $input['is_featured'] ?? false,
+                'status'      => $input['status'] ?? 'active',
+            ];
+
+            $id = $this->landListing->createListing($data);
+            if ($id === null) {
+                return ['success' => false, 'error' => 'Failed to create listing'];
+            }
+
+            return ['success' => true, 'id' => $id];
+        } catch (Exception $e) {
+            error_log("Create listing error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to create listing'];
+        }
+    }
+
+    /**
+     * PUT /api/v1/land-listings/{id}
+     * Auth: admin/manager
+     */
+    public function updateListing(string $id): array
+    {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                return ['success' => false, 'error' => 'Invalid JSON body'];
+            }
+
+            $tenantId = $this->getTenantId();
+            $existing = $this->landListing->getListingById($id, true);
+            if (!$existing) {
+                return ['success' => false, 'error' => 'Listing not found'];
+            }
+
+            $data = [];
+            $allowed = ['title', 'description', 'price', 'area', 'country', 'location', 'image_urls', 'is_featured', 'status'];
+            foreach ($allowed as $field) {
+                if (array_key_exists($field, $input)) {
+                    $data[$field] = $input[$field];
+                }
+            }
+
+            if (empty($data)) {
+                return ['success' => false, 'error' => 'No fields to update'];
+            }
+
+            $success = $this->landListing->updateListing($id, $tenantId, $data);
+            if (!$success) {
+                return ['success' => false, 'error' => 'Failed to update listing'];
+            }
+
+            return ['success' => true, 'id' => $id];
+        } catch (Exception $e) {
+            error_log("Update listing error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to update listing'];
+        }
+    }
+
+    /**
+     * DELETE /api/v1/land-listings/{id}
+     * Auth: admin/manager
+     */
+    public function deleteListing(string $id): array
+    {
+        try {
+            $tenantId = $this->getTenantId();
+            $existing = $this->landListing->getListingById($id, true);
+            if (!$existing) {
+                return ['success' => false, 'error' => 'Listing not found'];
+            }
+
+            $success = $this->landListing->deleteListing($id, $tenantId);
+            if (!$success) {
+                return ['success' => false, 'error' => 'Failed to delete listing'];
+            }
+
+            return ['success' => true, 'id' => $id, 'message' => 'Listing deactivated'];
+        } catch (Exception $e) {
+            error_log("Delete listing error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to delete listing'];
+        }
+    }
+
+    private function getTenantId(): string
+    {
+        $tenant = $_REQUEST['_tenant'] ?? null;
+        if ($tenant !== null && isset($tenant['id'])) {
+            return (string) $tenant['id'];
+        }
+        // Fallback for public routes that don't run TenantMiddleware
+        return 'a0000000-0000-0000-0000-000000000001';
+    }
+
     private function sanitizeProperties($properties) {
         if (is_array($properties)) {
             $sanitized = [];
@@ -375,9 +502,23 @@ class LandController {
         return $properties;
     }
 
-    private function getUserId() {
-        // Implement user authentication logic
-        // For now, return a placeholder
+    private function getUserId(): string {
+        $authUser = $_REQUEST['_auth_user'] ?? null;
+        if ($authUser !== null && isset($authUser['sub'])) {
+            return (string) $authUser['sub'];
+        }
+        // Fallback: check Authorization header directly if middleware didn't attach
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
+            $token = $matches[1];
+            $parts = explode('.', $token);
+            if (count($parts) === 3) {
+                $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+                if (is_array($payload) && isset($payload['sub'])) {
+                    return (string) $payload['sub'];
+                }
+            }
+        }
         return 'anonymous_user_' . uniqid();
     }
 

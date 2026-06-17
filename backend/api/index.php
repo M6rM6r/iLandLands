@@ -28,7 +28,7 @@ foreach ($allowedOrigins as $ao) {
     }
 }
 header('Access-Control-Allow-Origin: ' . $matchedOrigin);
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Credentials: true');
 
@@ -57,6 +57,8 @@ require_once '../middleware/RateLimitMiddleware.php';
 require_once '../middleware/JwtAuthMiddleware.php';
 require_once '../middleware/TenantMiddleware.php';
 
+require_once '../controllers/UserController.php';
+require_once '../controllers/DashboardController.php';
 require_once '../controllers/WebhookController.php';
 require_once '../services/SignatureVerifier.php';
 require_once '../services/QueueStore.php';
@@ -91,9 +93,11 @@ try {
     $action     = $pathParts[2] ?? null;
     $subAction  = $pathParts[3] ?? null;
 
-    $authController    = new AuthController($db);
-    $paymentController = new PaymentController($db);
-    $inquiryController = new InquiryController($db);
+    $authController       = new AuthController($db);
+    $paymentController    = new PaymentController($db);
+    $inquiryController    = new InquiryController($db);
+    $userController       = new UserController($db);
+    $dashboardController  = new DashboardController($db);
 
     switch ($endpoint) {
         // --- Authentication (public) ---
@@ -147,6 +151,33 @@ try {
                 }
                 http_response_code(200);
                 echo json_encode($landController->invalidateDescription($id));
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && !$id) {
+                // POST /api/v1/land-listings — create listing
+                if (empty($_REQUEST['_auth_user'])) {
+                    http_response_code(401);
+                    echo json_encode(['error' => 'Authentication required']);
+                    break;
+                }
+                http_response_code(201);
+                echo json_encode($landController->createListing());
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT' && $id && !$action) {
+                // PUT /api/v1/land-listings/{id} — update listing
+                if (empty($_REQUEST['_auth_user'])) {
+                    http_response_code(401);
+                    echo json_encode(['error' => 'Authentication required']);
+                    break;
+                }
+                http_response_code(200);
+                echo json_encode($landController->updateListing($id));
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE' && $id && !$action) {
+                // DELETE /api/v1/land-listings/{id} — soft delete
+                if (empty($_REQUEST['_auth_user'])) {
+                    http_response_code(401);
+                    echo json_encode(['error' => 'Authentication required']);
+                    break;
+                }
+                http_response_code(200);
+                echo json_encode($landController->deleteListing($id));
             } else {
                 http_response_code(405);
                 echo json_encode(['error' => 'Method not allowed']);
@@ -154,18 +185,12 @@ try {
             break;
 
         case 'favorites':
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $favMethod = $_SERVER['REQUEST_METHOD'];
+            if ($favMethod === 'POST') {
                 echo json_encode($landController->addToFavorites());
-            } elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            } elseif ($favMethod === 'GET') {
                 echo json_encode($landController->getFavorites());
-            } else {
-                http_response_code(405);
-                echo json_encode(['error' => 'Method not allowed']);
-            }
-            break;
-
-        case 'favorites':
-            if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && $id) {
+            } elseif ($favMethod === 'DELETE' && $id) {
                 echo json_encode($landController->removeFromFavorites($id));
             } else {
                 http_response_code(405);
@@ -280,6 +305,59 @@ try {
             } else {
                 http_response_code(404);
                 echo json_encode(['error' => 'Unknown webhook']);
+            }
+            break;
+
+        // --- Users (auth-gated) ---
+        case 'users':
+            $uMethod = $_SERVER['REQUEST_METHOD'];
+            $uId     = $pathParts[1] ?? '';
+            $uAction = $pathParts[2] ?? '';
+
+            if (empty($_REQUEST['_auth_user'])) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Authentication required']);
+                break;
+            }
+
+            if ($uMethod === 'GET' && $uId === '') {
+                $userController->list();
+            } elseif ($uMethod === 'GET' && $uId === 'me') {
+                $userController->me();
+            } elseif ($uMethod === 'PATCH' && $uId === 'me') {
+                $userController->updateProfile();
+            } elseif ($uMethod === 'GET' && $uId !== '') {
+                $userController->get($uId);
+            } elseif ($uMethod === 'PATCH' && $uId !== '') {
+                $userController->update($uId);
+            } elseif ($uMethod === 'DELETE' && $uId !== '') {
+                $userController->delete($uId);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        // --- Dashboard (auth-gated) ---
+        case 'dashboard':
+            $dMethod = $_SERVER['REQUEST_METHOD'];
+            $dSub    = $pathParts[1] ?? '';
+
+            if (empty($_REQUEST['_auth_user'])) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Authentication required']);
+                break;
+            }
+
+            if ($dMethod === 'GET' && $dSub === 'metrics') {
+                $dashboardController->metrics();
+            } elseif ($dMethod === 'GET' && $dSub === 'inquiry-pipeline') {
+                $dashboardController->inquiryPipeline();
+            } elseif ($dMethod === 'GET' && $dSub === 'recent-activity') {
+                $dashboardController->recentActivity();
+            } else {
+                http_response_code(404);
+                echo json_encode(['error' => 'Dashboard endpoint not found']);
             }
             break;
 

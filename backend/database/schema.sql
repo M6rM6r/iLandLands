@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
     `id`             INT UNSIGNED     NOT NULL AUTO_INCREMENT,
     `cart_id`        VARCHAR(64)      NOT NULL UNIQUE,
     `tenant_id`      CHAR(36)         NOT NULL,
-    `user_id`        INT UNSIGNED     NULL,
+    `user_id`        VARCHAR(36)      NULL,
     `listing_id`     VARCHAR(36)      NULL,
     `telr_order_id`  VARCHAR(64)      NULL,
     `amount`         DECIMAL(15, 2)   NOT NULL,

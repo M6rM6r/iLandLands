@@ -68,8 +68,11 @@ class LandListing {
         }
     }
 
-    public function getListingById($id) {
-        $sql = "SELECT * FROM {$this->table_name} WHERE id = :id AND status = 'active'";
+    public function getListingById($id, $includeInactive = false) {
+        $sql = "SELECT * FROM {$this->table_name} WHERE id = :id";
+        if (!$includeInactive) {
+            $sql .= " AND status = 'active'";
+        }
 
         try {
             $stmt = $this->db->prepare($sql);
@@ -77,7 +80,7 @@ class LandListing {
             $stmt->execute();
 
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($row) {
                 return $this->formatListing($row);
             }
@@ -257,6 +260,94 @@ class LandListing {
             error_log("Get user favorites error: " . $e->getMessage());
             return [];
         }
+    }
+
+    public function createListing(array $data): ?string {
+        $sql = "INSERT INTO {$this->table_name}
+                (id, tenant_id, title, description, price, area, country, location, image_urls, is_featured, status, created_at, updated_at)
+                VALUES (:id, :tenant_id, :title, :description, :price, :area, :country, :location, :image_urls, :is_featured, :status, NOW(), NOW())";
+
+        try {
+            $id = $data['id'] ?? $this->generateUuid();
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':id', $id);
+            $stmt->bindValue(':tenant_id', $data['tenant_id']);
+            $stmt->bindValue(':title', $data['title']);
+            $stmt->bindValue(':description', $data['description']);
+            $stmt->bindValue(':price', $data['price']);
+            $stmt->bindValue(':area', $data['area']);
+            $stmt->bindValue(':country', $data['country']);
+            $stmt->bindValue(':location', $data['location']);
+            $stmt->bindValue(':image_urls', json_encode($data['image_urls'] ?? []));
+            $stmt->bindValue(':is_featured', $data['is_featured'] ?? false, PDO::PARAM_BOOL);
+            $stmt->bindValue(':status', $data['status'] ?? 'active');
+            $stmt->execute();
+            return $id;
+        } catch (PDOException $e) {
+            error_log("Create listing error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function updateListing(string $id, string $tenantId, array $data): bool {
+        $allowedFields = ['title', 'description', 'price', 'area', 'country', 'location', 'image_urls', 'is_featured', 'status'];
+        $updates = [];
+        $params = [];
+
+        foreach ($allowedFields as $field) {
+            if (array_key_exists($field, $data)) {
+                $updates[] = "{$field} = :{$field}";
+                if ($field === 'image_urls') {
+                    $params[":{$field}"] = json_encode($data[$field]);
+                } elseif ($field === 'is_featured') {
+                    $params[":{$field}"] = $data[$field] ? 1 : 0;
+                } else {
+                    $params[":{$field}"] = $data[$field];
+                }
+            }
+        }
+
+        if (empty($updates)) {
+            return false;
+        }
+
+        $sql = "UPDATE {$this->table_name} SET " . implode(', ', $updates) . ", updated_at = NOW() WHERE id = :id AND tenant_id = :tenant_id";
+        $params[':id'] = $id;
+        $params[':tenant_id'] = $tenantId;
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Update listing error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function deleteListing(string $id, string $tenantId): bool {
+        // Soft delete: mark as inactive
+        $sql = "UPDATE {$this->table_name} SET status = 'inactive', updated_at = NOW() WHERE id = :id AND tenant_id = :tenant_id";
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':id', $id);
+            $stmt->bindValue(':tenant_id', $tenantId);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Delete listing error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function generateUuid(): string {
+        $data = random_bytes(16);
+        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 
     private function formatListing($row) {
