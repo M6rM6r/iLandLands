@@ -4,6 +4,7 @@ import 'package:gulflands/domain/usecases/filter_listings.dart';
 import 'package:gulflands/domain/usecases/get_favorites.dart';
 import 'package:gulflands/domain/usecases/get_land_listings.dart';
 import 'package:gulflands/domain/usecases/toggle_favorite.dart';
+import 'package:gulflands/models/sort_option.dart';
 
 class LandProvider with ChangeNotifier {
   LandProvider({
@@ -58,10 +59,11 @@ class LandProvider with ChangeNotifier {
   }
 
   Future<void> _applyFilters() async {
-    _filteredPlots = await filterListings(
+    final List<LandPlot> result = await filterListings(
       country: _selectedCountry,
       sortBy: _selectedSortOption,
     );
+    _filteredPlots = result;
     notifyListeners();
   }
 

@@ -59,7 +59,7 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.3),
+                color: theme.colorScheme.outline.withValues(alpha: 0.3),
               ),
             ),
             child: TextField(
@@ -102,7 +102,7 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.3),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               child: Column(

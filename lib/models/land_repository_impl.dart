@@ -34,7 +34,7 @@ class LandRepositoryImpl implements LandRepository {
             .toList();
       }
       throw ServerFailure('Invalid response', statusCode: response.statusCode);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }
@@ -42,25 +42,25 @@ class LandRepositoryImpl implements LandRepository {
   @override
   Future<void> submitLandPlot(LandPlot plot) async {
     try {
-      await _client.post(_endpoint, data: plot.toJson());
-    } on DioError catch (e) {
+      await _client.post<dynamic>(_endpoint, data: plot.toJson());
+    } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }
 
-  Failure _handleDioError(DioError error) {
-    if (error.type == DioErrorType.connectionTimeout ||
-        error.type == DioErrorType.receiveTimeout) {
+  Failure _handleDioError(DioException error) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
       return const NetworkFailure('Connection timed out');
     }
 
-    if (error.type == DioErrorType.response) {
-      final statusCode = error.response?.statusCode;
-      final data = error.response?.data;
-      final message = (data is Map)
-          ? (data['message'] ?? data['error'] ?? 'Server error')
+    if (error.type == DioExceptionType.badResponse) {
+      final int? statusCode = error.response?.statusCode;
+      final dynamic data = error.response?.data;
+      final String message = (data is Map)
+          ? (data['message'] ?? data['error'] ?? 'Server error').toString()
           : 'Server error';
-      return ServerFailure(message.toString(), statusCode: statusCode);
+      return ServerFailure(message, statusCode: statusCode);
     }
 
     return UnknownFailure(error.message ?? 'Unknown network error');

@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gulflands/bloc/land/land_bloc.dart';
 import 'package:gulflands/core/design_system.dart';
 import 'package:gulflands/models/land_plot.dart';
-import 'package:gulflands/models/sort_option.dart';
 import 'package:gulflands/presentation/screens/detail/land_detail_screen.dart';
 import 'package:gulflands/presentation/screens/search/search_screen.dart';
 import 'package:shimmer/shimmer.dart';
@@ -47,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _onRefresh() async {
     context.read<LandBloc>().add(const RefreshLandListings());
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 
   @override
@@ -259,7 +258,7 @@ class _SearchBar extends StatelessWidget {
           HapticFeedback.lightImpact();
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const SearchScreen()),
+            MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
           );
         },
         child: Container(
@@ -391,7 +390,7 @@ class _FeaturedCard extends StatelessWidget {
         HapticFeedback.lightImpact();
         Navigator.push(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (_) => LandDetailScreen(plot: plot),
           ),
         );
@@ -644,7 +643,7 @@ class _ListingCard extends StatelessWidget {
         HapticFeedback.lightImpact();
         Navigator.push(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (_) => LandDetailScreen(plot: plot),
           ),
         );

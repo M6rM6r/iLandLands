@@ -184,7 +184,7 @@ class _MapScreenState extends State<MapScreen> {
                                 onDetail: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
+                                    MaterialPageRoute<void>(
                                       builder: (_) => LandDetailScreen(
                                         plot: _selected!,
                                       ),

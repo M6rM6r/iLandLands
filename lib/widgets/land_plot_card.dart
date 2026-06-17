@@ -23,7 +23,7 @@ class LandPlotCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(tokens.borderRadiusMedium),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -35,7 +35,7 @@ class LandPlotCard extends StatelessWidget {
           children: [
             Expanded(
               child: Container(
-                color: tokens.brandPrimary.withOpacity(0.1),
+                color: tokens.brandPrimary.withValues(alpha: 0.1),
                 width: double.infinity,
                 child: const Icon(Icons.landscape, size: 48),
               ),

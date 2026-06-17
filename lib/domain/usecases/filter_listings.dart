@@ -1,8 +1,6 @@
 import 'package:gulflands/domain/entities/land_plot.dart';
 import 'package:gulflands/domain/repositories/land_repository.dart';
-import 'package:gulflands/models/land_plot.dart';
-
-enum SortOption { priceAsc, priceDesc, areaAsc, areaDesc, newest, oldest }
+import 'package:gulflands/models/sort_option.dart';
 
 class FilterListings {
   FilterListings(this.repository);
@@ -54,13 +52,13 @@ class FilterListings {
         return <LandPlot>[...listings]
           ..sort((LandPlot a, LandPlot b) => b.area.compareTo(a.area));
       case SortOption.newest:
-        return <LandPlot>[
-          ...listings,
-        ]..sort((LandPlot a, LandPlot b) => b.createdAt.compareTo(a.createdAt));
+        return <LandPlot>[...listings]
+          ..sort((LandPlot a, LandPlot b) => b.createdAt.compareTo(a.createdAt));
       case SortOption.oldest:
-        return <LandPlot>[
-          ...listings,
-        ]..sort((LandPlot a, LandPlot b) => a.createdAt.compareTo(b.createdAt));
+        return <LandPlot>[...listings]
+          ..sort((LandPlot a, LandPlot b) => a.createdAt.compareTo(b.createdAt));
+      default:
+        return listings;
     }
   }
 }

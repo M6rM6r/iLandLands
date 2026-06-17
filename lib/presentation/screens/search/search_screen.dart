@@ -354,7 +354,7 @@ class _SearchResultCard extends StatelessWidget {
         HapticFeedback.lightImpact();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => LandDetailScreen(plot: plot)),
+          MaterialPageRoute<void>(builder: (_) => LandDetailScreen(plot: plot)),
         );
       },
       child: Container(

@@ -57,7 +57,7 @@ class _LandDetailScreenState extends State<LandDetailScreen> {
 
   void _showInquiry() {
     HapticFeedback.mediumImpact();
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

@@ -1,5 +1,3 @@
-import 'package:flutter/widgets.dart';
-
 typedef FieldValidator = String? Function(String?);
 
 class AppValidators {

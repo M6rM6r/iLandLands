@@ -57,7 +57,7 @@ class _InquiryBottomSheetState extends State<InquiryBottomSheet> {
         _sent = true;
       });
       HapticFeedback.heavyImpact();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.pop(context);
     } catch (_) {
       setState(() => _loading = false);

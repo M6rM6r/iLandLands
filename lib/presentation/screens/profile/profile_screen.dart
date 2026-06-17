@@ -256,7 +256,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _showSignOutDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBg,
