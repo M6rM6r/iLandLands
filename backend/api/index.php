@@ -1,6 +1,33 @@
 <?php
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: https://gulflands.com'); // Restrict to specific domain
+$allowedOrigins = [
+    'https://gulflands.com',
+    'https://www.gulflands.com',
+    'https://ilandlands.web.app',
+    'https://ilandlands.firebaseapp.com',
+    'https://*.lovable.app',
+    'https://*.lovableproject.com',
+    'https://*.bolt.new',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080',
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$matchedOrigin = 'https://gulflands.com';
+foreach ($allowedOrigins as $ao) {
+    if ($ao === $origin) {
+        $matchedOrigin = $origin;
+        break;
+    }
+    if (str_contains($ao, '*')) {
+        $pattern = str_replace('\\*', '.*', preg_quote($ao, '/'));
+        if (preg_match('/^' . $pattern . '$/', $origin)) {
+            $matchedOrigin = $origin;
+            break;
+        }
+    }
+}
+header('Access-Control-Allow-Origin: ' . $matchedOrigin);
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Credentials: true');

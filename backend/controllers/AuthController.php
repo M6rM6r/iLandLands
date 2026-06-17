@@ -84,7 +84,7 @@ class AuthController {
         $startTime = microtime(true);
 
         $stmt = $this->db->prepare(
-            'SELECT id, email, password_hash, country, status FROM users WHERE email = ? LIMIT 1'
+            'SELECT id, email, password_hash, country, status, role FROM users WHERE email = ? LIMIT 1'
         );
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -107,8 +107,8 @@ class AuthController {
             $this->respond(403, ['error' => 'Account is not active']);
         }
 
-        $accessToken  = $this->issueJwt($user['id'], $user['email'], 'user', 3600);
-        $refreshToken = $this->issueJwt($user['id'], $user['email'], 'user', 86400 * 30, 'refresh');
+        $accessToken  = $this->issueJwt($user['id'], $user['email'], $user['role'], 3600);
+        $refreshToken = $this->issueJwt($user['id'], $user['email'], $user['role'], 86400 * 30, 'refresh');
 
         $this->respond(200, [
             'access_token'  => $accessToken,
@@ -119,6 +119,7 @@ class AuthController {
                 'id'      => $user['id'],
                 'email'   => $user['email'],
                 'country' => $user['country'],
+                'role'    => $user['role'],
             ],
         ]);
     }

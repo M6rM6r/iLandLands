@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS `contact_inquiries` (
     `email`      VARCHAR(255) NOT NULL,
     `phone`      VARCHAR(20)  NULL,
     `message`    TEXT         NOT NULL,
-    `status`     ENUM('new','read','replied','closed') NOT NULL DEFAULT 'new',
+    `status`     ENUM('new','contacted','scheduled','visited','negotiating','won','lost','read','replied','closed') NOT NULL DEFAULT 'new',
     `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

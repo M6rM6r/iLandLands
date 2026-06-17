@@ -25,7 +25,8 @@ class InquiryController
     private LeadScoringService  $leadScoring;
     private FunnelEventService  $funnel;
 
-    private const ALLOWED_STATUSES = ['new', 'read', 'replied', 'closed'];
+    // Pipeline statuses for Kanban board: New -> Contacted -> Scheduled -> Visited -> Negotiating -> Closed (Won/Lost)
+    private const ALLOWED_STATUSES = ['new', 'contacted', 'scheduled', 'visited', 'negotiating', 'won', 'lost', 'read', 'replied', 'closed'];
 
     public function __construct(PDO $db)
     {
