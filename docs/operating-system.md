@@ -16,7 +16,7 @@ This document provides comprehensive setup instructions, development workflows, 
 ### Development Tools
 
 #### Flutter Development
-- Flutter SDK: 3.8.1 or later
+- Flutter SDK: 3.16.0 or later
 - Dart SDK: 3.0.0 or later
 - Android Studio / VS Code with Flutter extensions
 - Android SDK (API 21+) or Xcode (for iOS development)
@@ -299,17 +299,24 @@ git push origin main --tags
 
 #### Web Deployment (Firebase)
 
-Ensure the Firebase CLI is installed and authenticated:
-```bash
-npm install -g firebase-tools
-firebase login
-```
+Ensure the Firebase CLI is installed and authenticated locally. For CI/CD, you must provide a `FIREBASE_TOKEN` secret in GitHub.
 
-Deploy using the automation task:
+### Required GitHub Secrets
+To enable full automation, configure these in **Settings > Secrets and variables > Actions**:
+
+| Secret | Description |
+| :--- | :--- |
+| `FIREBASE_TOKEN` | Token for Firebase Hosting deployment (`firebase login:ci`) |
+| `CODECOV_TOKEN` | Token for coverage reports upload |
+| `SLACK_WEBHOOK` | Webhook for deployment notifications |
+| `GH_TOKEN` | (Optional) For GitHub Container Registry access |
+
+### Deployment Commands
 ```bash
+# Deploy Flutter Web manually
+make build-web
 make deploy-web
 ```
-
 # Monitor deployment
 # Check logs, metrics, error rates
 ```

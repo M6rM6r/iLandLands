@@ -38,15 +38,16 @@ jobs:
       run: make test-flutter
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: coverage/lcov.info
+        token: ${{ secrets.CODECOV_TOKEN }}
     
     - name: Build web app
       run: make build-web
 
     - name: Upload web build artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: flutter-web-build
         path: build/web
@@ -80,7 +81,7 @@ jobs:
       run: make test-php
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: backend/coverage.xml
 
@@ -119,7 +120,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download web build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: flutter-web-build
           path: build/web
@@ -289,7 +290,7 @@ jobs:
         k6 run --out json=performance-results.json tests/performance/load-test.js
     
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-results
         path: performance-results.json
