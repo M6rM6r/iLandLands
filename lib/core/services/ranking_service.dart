@@ -51,11 +51,12 @@ class RankingService {
       );
     }).toList();
 
-    // Sort by score descending
-    scored.sort(
-      (ScoredLandPlot a, ScoredLandPlot b) => b.score.compareTo(a.score),
-    );
+    // Filter out non-matching results, then sort by score descending
+    final List<ScoredLandPlot> matched = scored
+        .where((ScoredLandPlot s) => s.searchRelevance > 0)
+        .toList()
+      ..sort((ScoredLandPlot a, ScoredLandPlot b) => b.score.compareTo(a.score));
 
-    return scored;
+    return matched;
   }
 }

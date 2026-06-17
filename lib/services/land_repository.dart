@@ -97,7 +97,7 @@ class LandRepositoryImpl implements LandRepository {
           .get<List<dynamic>>(cacheKey);
       if (cachedListings != null) {
         return cachedListings
-            .map((json) => LandPlot.fromJson(json as Map<String, dynamic>))
+            .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
     }
@@ -151,7 +151,7 @@ class LandRepositoryImpl implements LandRepository {
           .get<List<dynamic>>(cacheKey);
       if (cachedListings != null) {
         return cachedListings
-            .map((json) => LandPlot.fromJson(json as Map<String, dynamic>))
+            .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
       rethrow;
@@ -190,7 +190,7 @@ class LandRepositoryImpl implements LandRepository {
         .get<List<dynamic>>(_featuredCacheKey);
     if (cachedFeatured != null) {
       return cachedFeatured
-          .map((json) => LandPlot.fromJson(json as Map<String, dynamic>))
+          .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
           .toList();
     }
 
@@ -213,7 +213,7 @@ class LandRepositoryImpl implements LandRepository {
           .get<List<dynamic>>(_featuredCacheKey);
       if (cachedFeatured != null) {
         return cachedFeatured
-            .map((json) => LandPlot.fromJson(json as Map<String, dynamic>))
+            .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
       return <LandPlot>[];

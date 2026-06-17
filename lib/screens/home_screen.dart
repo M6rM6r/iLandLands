@@ -70,7 +70,23 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(child: _Header(displayName: displayName)),
 
               // ── Search bar ──────────────────────────────────────────────
-              const SliverToBoxAdapter(child: _SearchBar()),
+              SliverToBoxAdapter(
+                child: _SearchBar(
+                  onTap: () async {
+                    await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SearchScreen(),
+                      ),
+                    );
+                    if (mounted) {
+                      context
+                          .read<LandBloc>()
+                          .add(FilterLandListings(_selectedCountry));
+                    }
+                  },
+                ),
+              ),
 
               // ── Featured carousel ────────────────────────────────────────
               const SliverToBoxAdapter(child: _FeaturedSection()),
@@ -247,7 +263,8 @@ class _Header extends StatelessWidget {
 
 // ─── Search Bar ───────────────────────────────────────────────────────────────
 class _SearchBar extends StatelessWidget {
-  const _SearchBar();
+  const _SearchBar({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -256,10 +273,7 @@ class _SearchBar extends StatelessWidget {
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
-          );
+          onTap();
         },
         child: Container(
           height: 50,

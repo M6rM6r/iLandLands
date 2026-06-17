@@ -201,8 +201,9 @@ class _AddLandPlotPageState extends State<AddLandPlotPage> {
       ),
       validator: (String? value) {
         if (value == null || value.isEmpty) return 'This field is required';
-        if (isNumber && double.tryParse(value) == null)
+        if (isNumber && double.tryParse(value) == null) {
           return 'Please enter a valid number';
+        }
         return null;
       },
     );
