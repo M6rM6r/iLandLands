@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gulflands/bloc/auth/auth_bloc.dart';
@@ -77,6 +78,25 @@ class MyApp extends StatelessWidget {
                 child: MaterialApp(
                   title: 'Gulf Lands',
                   debugShowCheckedModeBanner: false,
+                  locale: const Locale('ar'),
+                  supportedLocales: const [
+                    Locale('ar'),
+                    Locale('en'),
+                  ],
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  localeResolutionCallback: (locale, supportedLocales) {
+                    if (locale == null) return const Locale('ar');
+                    for (final supported in supportedLocales) {
+                      if (supported.languageCode == locale.languageCode) {
+                        return supported;
+                      }
+                    }
+                    return const Locale('ar');
+                  },
                   theme: _buildDarkTheme(),
                   home: _AuthGate(seenOnboarding: services.seenOnboarding),
                 ),
