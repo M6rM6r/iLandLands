@@ -228,8 +228,8 @@ class _SlidePage extends StatelessWidget {
             ScaleTransition(
               scale: animation,
               child: Container(
-                width: size.width * 0.6,
-                height: size.width * 0.6,
+                width: size.width > 600 ? 280.0 : size.width * 0.55,
+                height: size.width > 600 ? 280.0 : size.width * 0.55,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.cardBg,
@@ -248,7 +248,7 @@ class _SlidePage extends StatelessWidget {
                 child: Center(
                   child: Icon(
                     slide.icon,
-                    size: size.width * 0.25,
+                    size: size.width > 600 ? 110.0 : size.width * 0.22,
                     color: AppColors.gold,
                   ),
                 ),
