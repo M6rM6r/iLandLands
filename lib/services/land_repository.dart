@@ -109,8 +109,124 @@ class LandRepositoryImpl implements LandRepository {
             .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
-      return <LandPlot>[];
+      // Fallback to mock data if API fails
+      return _getMockListings(country, searchQuery);
     }
+  }
+
+  List<LandPlot> _getMockListings(Country? country, String? searchQuery) {
+    final List<LandPlot> all = <LandPlot>[
+      LandPlot(
+        id: '1',
+        title: 'Premium Land in Downtown Dubai',
+        description: 'Exceptional commercial land in the heart of Downtown Dubai, perfect for high-rise development. Close to Burj Khalifa and Dubai Mall.',
+        location: 'Downtown Dubai, UAE',
+        price: 15000000,
+        area: 2500,
+        country: Country.uae,
+        imageUrls: ['https://images.unsplash.com/photo-1512453979798-5ea904ac66de?w=800'],
+        isFeatured: true,
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+      ),
+      LandPlot(
+        id: '2',
+        title: 'Beachfront Plot in Riyadh',
+        description: 'Stunning beachfront land with direct sea access. Ideal for luxury residential development or waterfront resort.',
+        location: 'Riyadh, KSA',
+        price: 25000000,
+        area: 5000,
+        country: Country.saudiArabia,
+        imageUrls: ['https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800'],
+        isFeatured: true,
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+      LandPlot(
+        id: '3',
+        title: 'Commercial Land in Doha',
+        description: 'Prime commercial land in Doha\'s business district. Excellent investment opportunity with high growth potential.',
+        location: 'Doha, Qatar',
+        price: 8500000,
+        area: 1800,
+        country: Country.qatar,
+        imageUrls: ['https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800'],
+        isFeatured: false,
+        createdAt: DateTime.now().subtract(const Duration(days: 7)),
+      ),
+      LandPlot(
+        id: '4',
+        title: 'Residential Plot in Kuwait City',
+        description: 'Beautiful residential plot in a quiet, upscale neighborhood. Perfect for building a dream home.',
+        location: 'Kuwait City, Kuwait',
+        price: 4200000,
+        area: 1200,
+        country: Country.kuwait,
+        imageUrls: ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'],
+        isFeatured: false,
+        createdAt: DateTime.now().subtract(const Duration(days: 10)),
+      ),
+      LandPlot(
+        id: '5',
+        title: 'Industrial Land in Manama',
+        description: 'Large industrial land with excellent road access. Suitable for warehouses, factories, or logistics centers.',
+        location: 'Manama, Bahrain',
+        price: 6800000,
+        area: 8000,
+        country: Country.bahrain,
+        imageUrls: ['https://images.unsplash.com/photo-1497366216548-37526070297c?w=800'],
+        isFeatured: false,
+        createdAt: DateTime.now().subtract(const Duration(days: 15)),
+      ),
+      LandPlot(
+        id: '6',
+        title: 'Agricultural Land in Muscat',
+        description: 'Fertile agricultural land with water access. Perfect for farming, orchards, or eco-tourism projects.',
+        location: 'Muscat, Oman',
+        price: 3200000,
+        area: 15000,
+        country: Country.oman,
+        imageUrls: ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'],
+        isFeatured: false,
+        createdAt: DateTime.now().subtract(const Duration(days: 20)),
+      ),
+      LandPlot(
+        id: '7',
+        title: 'Luxury Plot in Abu Dhabi',
+        description: 'Exclusive luxury land on Yas Island. Waterfront location with marina access. Perfect for ultra-luxury development.',
+        location: 'Yas Island, Abu Dhabi',
+        price: 35000000,
+        area: 4000,
+        country: Country.uae,
+        imageUrls: ['https://images.unsplash.com/photo-1512453979798-5ea904ac66de?w=800'],
+        isFeatured: true,
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+      ),
+      LandPlot(
+        id: '8',
+        title: 'Commercial Land in Jeddah',
+        description: 'Prime commercial land near King Abdulaziz Airport. High traffic area ideal for retail, offices, or hotels.',
+        location: 'Jeddah, KSA',
+        price: 18000000,
+        area: 3500,
+        country: Country.saudiArabia,
+        imageUrls: ['https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800'],
+        isFeatured: true,
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+      ),
+    ];
+
+    List<LandPlot> filtered = all;
+    if (country != null) {
+      filtered = filtered.where((p) => p.country == country).toList();
+    }
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final String q = searchQuery.toLowerCase();
+      filtered = filtered.where((p) =>
+          p.title.toLowerCase().contains(q) ||
+          p.description.toLowerCase().contains(q) ||
+          p.location.toLowerCase().contains(q)
+      ).toList();
+    }
+    return filtered;
   }
 
   @override

@@ -128,12 +128,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
                   child: Row(
                     children: [
-                      Text(
-                        'All Listings',
-                        style: GoogleFonts.poppins(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Text(
+                          'All Listings',
+                          style: GoogleFonts.poppins(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -142,11 +145,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           final count = s is LandStateLoaded
                               ? s.listings.length
                               : 0;
-                          return Text(
-                            '$count plots',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textMuted,
+                          return Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Text(
+                              '$count plots',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
                             ),
                           );
                         },
@@ -284,22 +290,28 @@ class _Header extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Welcome back,',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w400,
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  'Welcome back,',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                displayName,
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.3,
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  displayName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
             ],
@@ -411,12 +423,15 @@ class _FeaturedSection extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Featured Listings',
-                    style: GoogleFonts.poppins(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      'Featured Listings',
+                      style: GoogleFonts.poppins(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -470,8 +485,24 @@ class _FeaturedCard extends StatelessWidget {
         HapticFeedback.lightImpact();
         Navigator.push(
           context,
-          MaterialPageRoute<void>(
-            builder: (_) => LandDetailScreen(plot: plot),
+          PageRouteBuilder<void>(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                LandDetailScreen(plot: plot),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 0.05);
+              const end = Offset.zero;
+              const curve = Curves.easeOut;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+              return SlideTransition(
+                position: offsetAnimation,
+                child: FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 300),
           ),
         );
       },
@@ -583,14 +614,18 @@ class _FeaturedCard extends StatelessWidget {
                     color: AppColors.gold,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    '★ FEATURED',
-                    style: GoogleFonts.inter(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navy,
-                      letterSpacing: 0.8,
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      '★ FEATURED',
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navy,
+                        letterSpacing: 0.8,
+                      ),
                     ),
+                  ),
                   ),
                 ),
               ),
@@ -674,16 +709,19 @@ class _CountryFilter extends StatelessWidget {
                 children: [
                   Text(chip.flag, style: const TextStyle(fontSize: 14)),
                   const SizedBox(width: 6),
-                  Text(
-                    chip.label,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      color: isSelected
-                          ? AppColors.gold
-                          : AppColors.textSecondary,
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      chip.label,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: isSelected
+                            ? AppColors.gold
+                            : AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -723,8 +761,24 @@ class _ListingCard extends StatelessWidget {
         HapticFeedback.lightImpact();
         Navigator.push(
           context,
-          MaterialPageRoute<void>(
-            builder: (_) => LandDetailScreen(plot: plot),
+          PageRouteBuilder<void>(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                LandDetailScreen(plot: plot),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 0.05);
+              const end = Offset.zero;
+              const curve = Curves.easeOut;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+              return SlideTransition(
+                position: offsetAnimation,
+                child: FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 300),
           ),
         );
       },
@@ -901,36 +955,80 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.landscape_outlined,
-              size: 64,
-              color: AppColors.textMuted,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No listings found',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          opacity: value,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(48),
+              child: Column(
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.gold.withValues(alpha: 0.1),
+                          AppColors.navyDeep.withValues(alpha: 0.3),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.search_off_rounded,
+                      size: 56,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      'No listings found',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      'Try adjusting your filter',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () {
+                      // Reset filter would go here
+                    },
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Refresh'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.gold.withValues(alpha: 0.2),
+                      foregroundColor: AppColors.gold,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your filter',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
