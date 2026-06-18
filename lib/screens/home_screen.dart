@@ -626,7 +626,6 @@ class _FeaturedCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  ),
                 ),
               ),
             ],
@@ -960,10 +959,11 @@ class _EmptyState extends StatelessWidget {
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOut,
       builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
+        return Opacity(
           opacity: value,
-          child: Center(
+          child: Transform.scale(
+            scale: 0.8 + (0.2 * value),
+            child: Center(
             child: Padding(
               padding: const EdgeInsets.all(48),
               child: Column(
