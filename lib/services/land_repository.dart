@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gulflands/core/config/app_config.dart';
+import 'package:gulflands/core/network/api_client.dart';
 import 'package:gulflands/core/storage/cache_manager.dart';
 import 'package:gulflands/models/land_plot.dart';
 import 'package:gulflands/models/sort_option.dart';
@@ -22,11 +24,15 @@ abstract class LandRepository {
 class LandRepositoryImpl implements LandRepository {
   LandRepositoryImpl({
     required CacheManager cacheManager,
+    ApiClient? apiClient,
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  }) : _db = firestore ?? FirebaseFirestore.instance,
+  }) : _apiClient = apiClient ?? ApiClientImpl(),
+       _db = firestore ?? FirebaseFirestore.instance,
        _auth = auth ?? FirebaseAuth.instance,
        _cacheManager = cacheManager;
+
+  final ApiClient _apiClient;
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
   final CacheManager _cacheManager;
@@ -36,51 +42,28 @@ class LandRepositoryImpl implements LandRepository {
   static const String _favoritesCacheKey = 'favorite_ids';
   static const Duration _cacheTtl = Duration(hours: 1);
 
-  CollectionReference<Map<String, dynamic>> get _listingsCol =>
-      _db.collection('land_listings');
   CollectionReference<Map<String, dynamic>> get _favoritesCol =>
       _db.collection('user_favorites');
 
-  LandPlot _fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final Map<String, dynamic> data = doc.data()!;
-    final Map<String, dynamic> json = <String, dynamic>{
-      ...data,
-      'id': doc.id,
-      'createdAt':
-          (data['createdAt'] as Timestamp?)?.toDate().toIso8601String() ??
-          DateTime.now().toIso8601String(),
-      'updatedAt': (data['updatedAt'] as Timestamp?)
-          ?.toDate()
-          .toIso8601String(),
-      'country': _normaliseCountry(data['country'] as String? ?? ''),
-      'imageUrls': (data['imageUrls'] as List<dynamic>?) ?? <dynamic>[],
-      'isFeatured': data['isFeatured'] ?? false,
+  /// Map Flutter SortOption values to PHP API sort params.
+  String? _mapSort(SortOption? sortBy) {
+    return switch (sortBy) {
+      SortOption.priceAsc => 'priceAsc',
+      SortOption.priceDesc => 'priceDesc',
+      SortOption.areaAsc => 'areaAsc',
+      SortOption.areaDesc => 'areaDesc',
+      _ => null,
     };
-    return LandPlot.fromJson(json);
   }
 
-  String _normaliseCountry(String raw) {
-    const Map<String, String> map = <String, String>{
-      'SA': 'saudiArabia',
-      'UAE': 'uae',
-      'QA': 'qatar',
-      'BH': 'bahrain',
-      'OM': 'oman',
-      'KW': 'kuwait',
-    };
-    return map[raw.toUpperCase()] ?? raw;
-  }
-
-  String _countryToCode(Country country) {
-    const Map<Country, String> map = <Country, String>{
-      Country.saudiArabia: 'SA',
-      Country.uae: 'UAE',
-      Country.qatar: 'QA',
-      Country.bahrain: 'BH',
-      Country.oman: 'OM',
-      Country.kuwait: 'KW',
-    };
-    return map[country] ?? 'SA';
+  List<LandPlot> _parseListingsResponse(dynamic response) {
+    if (response is! Map<String, dynamic>) return <LandPlot>[];
+    if (response['success'] != true) return <LandPlot>[];
+    final data = response['data'];
+    if (data is! List<dynamic>) return <LandPlot>[];
+    return data
+        .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -93,68 +76,40 @@ class LandRepositoryImpl implements LandRepository {
     final String cacheKey = _generateCacheKey(country, sortBy, searchQuery);
 
     if (!forceRefresh) {
-      final List<dynamic>? cachedListings = await _cacheManager
-          .get<List<dynamic>>(cacheKey);
-      if (cachedListings != null) {
-        return cachedListings
+      final List<dynamic>? cached = await _cacheManager.get<List<dynamic>>(cacheKey);
+      if (cached != null) {
+        return cached
             .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
     }
 
     try {
-      Query<Map<String, dynamic>> query = _listingsCol.where(
-        'status',
-        isEqualTo: 'active',
-      );
-
-      if (country != null) {
-        query = query.where('country', isEqualTo: _countryToCode(country));
-      }
-
-      switch (sortBy) {
-        case SortOption.priceAsc:
-          query = query.orderBy('price');
-        case SortOption.priceDesc:
-          query = query.orderBy('price', descending: true);
-        case SortOption.areaAsc:
-          query = query.orderBy('area');
-        case SortOption.areaDesc:
-          query = query.orderBy('area', descending: true);
-        case SortOption.oldest:
-          query = query.orderBy('createdAt');
-        default:
-          query = query.orderBy('createdAt', descending: true);
-      }
-
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await query
-          .limit(50)
-          .get();
-      List<LandPlot> plots = snapshot.docs.map(_fromDoc).toList();
-
+      final Map<String, String> query = <String, String>{};
+      if (country != null) query['country'] = country.name;
+      final sort = _mapSort(sortBy);
+      if (sort != null) query['sort'] = sort;
       if (searchQuery != null && searchQuery.isNotEmpty) {
-        final String q = searchQuery.toLowerCase();
-        plots = plots.where((LandPlot p) {
-          return p.title.toLowerCase().contains(q) ||
-              p.description.toLowerCase().contains(q) ||
-              p.location.toLowerCase().contains(q);
-        }).toList();
+        query['search'] = searchQuery;
       }
 
-      final List<Map<String, dynamic>> listingsJson = plots
-          .map((LandPlot p) => p.toJson())
-          .toList();
+      final String qs = query.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+      final String endpoint = '/land-listings${qs.isNotEmpty ? '?$qs' : ''}';
+
+      final dynamic response = await _apiClient.get(endpoint);
+      final List<LandPlot> plots = _parseListingsResponse(response);
+
+      final List<Map<String, dynamic>> listingsJson = plots.map((p) => p.toJson()).toList();
       await _cacheManager.set(cacheKey, listingsJson, ttl: _cacheTtl);
       return plots;
     } catch (e) {
-      final List<dynamic>? cachedListings = await _cacheManager
-          .get<List<dynamic>>(cacheKey);
-      if (cachedListings != null) {
-        return cachedListings
+      final List<dynamic>? cached = await _cacheManager.get<List<dynamic>>(cacheKey);
+      if (cached != null) {
+        return cached
             .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
-      rethrow;
+      return <LandPlot>[];
     }
   }
 
@@ -162,57 +117,47 @@ class LandRepositoryImpl implements LandRepository {
   Future<LandPlot?> getLandPlotById(String id) async {
     final String cacheKey = 'land_plot_$id';
 
-    final Map<String, dynamic>? cachedPlot = await _cacheManager
-        .get<Map<String, dynamic>>(cacheKey);
-    if (cachedPlot != null) {
-      return LandPlot.fromJson(cachedPlot);
-    }
+    final Map<String, dynamic>? cached = await _cacheManager.get<Map<String, dynamic>>(cacheKey);
+    if (cached != null) return LandPlot.fromJson(cached);
 
     try {
-      final DocumentSnapshot<Map<String, dynamic>> doc = await _listingsCol
-          .doc(id)
-          .get();
-      if (!doc.exists) return null;
-      final LandPlot plot = _fromDoc(doc);
+      final dynamic response = await _apiClient.get('/land-listings/$id');
+      if (response is! Map<String, dynamic>) return null;
+      if (response['success'] != true) return null;
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) return null;
+      final plot = LandPlot.fromJson(data);
       await _cacheManager.set(cacheKey, plot.toJson(), ttl: _cacheTtl);
       return plot;
     } catch (e) {
-      final Map<String, dynamic>? cachedPlot = await _cacheManager
-          .get<Map<String, dynamic>>(cacheKey);
-      if (cachedPlot != null) return LandPlot.fromJson(cachedPlot);
+      final Map<String, dynamic>? cached = await _cacheManager.get<Map<String, dynamic>>(cacheKey);
+      if (cached != null) return LandPlot.fromJson(cached);
       return null;
     }
   }
 
   @override
   Future<List<LandPlot>> getFeaturedListings() async {
-    final List<dynamic>? cachedFeatured = await _cacheManager
-        .get<List<dynamic>>(_featuredCacheKey);
-    if (cachedFeatured != null) {
-      return cachedFeatured
+    final List<dynamic>? cached = await _cacheManager.get<List<dynamic>>(_featuredCacheKey);
+    if (cached != null) {
+      return cached
           .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
           .toList();
     }
 
     try {
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await _listingsCol
-          .where('isFeatured', isEqualTo: true)
-          .where('status', isEqualTo: 'active')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .get();
+      // Load active listings and filter for featured client-side
+      final dynamic response = await _apiClient.get('/land-listings');
+      final List<LandPlot> all = _parseListingsResponse(response);
+      final List<LandPlot> featured = all.where((p) => p.isFeatured).toList();
 
-      final List<LandPlot> featured = snapshot.docs.map(_fromDoc).toList();
-      final List<Map<String, dynamic>> featuredJson = featured
-          .map((LandPlot p) => p.toJson())
-          .toList();
+      final List<Map<String, dynamic>> featuredJson = featured.map((p) => p.toJson()).toList();
       await _cacheManager.set(_featuredCacheKey, featuredJson, ttl: _cacheTtl);
       return featured;
     } catch (e) {
-      final List<dynamic>? cachedFeatured = await _cacheManager
-          .get<List<dynamic>>(_featuredCacheKey);
-      if (cachedFeatured != null) {
-        return cachedFeatured
+      final List<dynamic>? cached = await _cacheManager.get<List<dynamic>>(_featuredCacheKey);
+      if (cached != null) {
+        return cached
             .map((dynamic json) => LandPlot.fromJson(json as Map<String, dynamic>))
             .toList();
       }
